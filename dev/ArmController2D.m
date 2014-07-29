@@ -11,6 +11,7 @@ classdef ArmController2D < handle
     end
     
     methods
+        % Constructor
         function obj = ArmController2D()
             obj.arm2D = Arm2D();
             obj.gripper2D = Gripper2D();
@@ -18,6 +19,10 @@ classdef ArmController2D < handle
             obj.sensor = Sensor(obj.arm2D,obj.roundObject);
             obj.plannerGrasp = PlannerGrasp(obj.arm2D,obj.roundObject,obj.sensor);
         end
+        function start(obj)
+            obj.sensor.initialize();
+        end
+        % Destructor
         function delete(obj)
             obj.arm2D.delete();
             obj.gripper2D.delete();
