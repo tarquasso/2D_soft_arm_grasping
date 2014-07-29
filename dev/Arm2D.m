@@ -8,10 +8,11 @@ classdef Arm2D < handle
         above_max = 'false'      % boolean if any segments are above k limits 
         k_measured               % measured arc curvatures 
         curvature_controller     % curvature controller        
+        k_target                 % target arc curvatures 
     end
     
     properties(Dependent)
-        k_target                 % target arc curvatures 
+        
     end
     
     properties(Constant)
@@ -21,20 +22,28 @@ classdef Arm2D < handle
     end
     
     methods
+        
+        function obj = Arm2D()
+        end
 
-        function set.k_target(obj, val)
+        function obj = setTarget(obj, val)
            dims = size(val);
            if( dims(1) == obj.N && dims(2) == 1)
+               strcmp(obj.above_max, 'false');
+               
                for i = 1:obj.N
-                  if( val(i) < obj.k_min || val(i) > obj.k_max )
+                  if( (val(i) < obj.k_min) || (val(i) > obj.k_max) )
                       obj.above_max = 'true';
                   end
                end
-               
-               if( obj.above_max ~= 'true' )
-                    obj.k_target = val;
+
+               if( strcmp(obj.above_max, 'false') )
+                   obj.k_target = val;
+                   send_curvature_errors(obj.curvature_controller, obj.k_target', obj.k_measured);
+               else
+                   error('An element of k exceeds allowable limit')
                end
-               %send_curvature_errors(obj.curvature_controller, obj.k_target', obj.k_measured)
+               
            else
                error('The size of k does not match the arm.')
            end
