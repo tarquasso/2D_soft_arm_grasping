@@ -45,7 +45,6 @@ function [theClient, ls] = StartNatNetMatlab()
     if(retCode ==0)
         byteArray = uint8(byteArray);
         frameRate = typecast(byteArray,'single');
-        fprintf('retCode = 0\n');
     end
     fprintf('frameRate: %i\n',frameRate);
     % get the mocap data
@@ -58,6 +57,8 @@ end
 % Test : Process data in a NatNet FrameReady Event listener callback
 function FrameReadyCallback(src, event)
     persistent countDots;
+    global frameOfData; %for debug made global
+
     if isempty(countDots)
         countDots = 1;
     end

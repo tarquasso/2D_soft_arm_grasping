@@ -5,7 +5,8 @@ clear all
 
 global positionData
 global positionTime
-
+global frameOfData %for debugging made global
+global angles
 %BYTES_PER_VOLT_2 = 1000.0/2.5;
 
 [theClient, ls] = StartNatNetMatlab();
@@ -28,11 +29,11 @@ global positionTime
 %value3 = 0;
 %value4 = 0;
 
-for i=1:10
-    pause(1);
-    positionData
-    positionTime
-end
+% for i=1:10
+%     pause(1);
+%     positionData
+%     positionTime
+% end
 
 %initialFrameTime = positionTime;
 
@@ -70,4 +71,4 @@ end
 % filename = strrep(filename,':','_');
 % save(filename, 'experimentData');
 
-EndNatNetMatlab( theClient, ls );
+% EndNatNetMatlab( theClient, ls );
