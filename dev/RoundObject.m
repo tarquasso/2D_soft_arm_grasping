@@ -11,14 +11,8 @@ classdef RoundObject < handle
         function obj = RoundObject()
             obj.prop = 2;
         end
-        function set.fun(obj,value)
-            if ~(value > 0)
-                error('Property value must be positive')
-            else
-                obj.fun = value+obj.prop;
-            end
-        end
         function delete(obj)
+            
         end
     end
     

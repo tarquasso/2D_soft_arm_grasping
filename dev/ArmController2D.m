@@ -15,8 +15,8 @@ classdef ArmController2D < handle
             obj.arm2D = Arm2D();
             obj.gripper2D = Gripper2D();
             obj.roundObject = RoundObject();
-            obj.sensor = Sensor(obj.arm,obj.roundObject);
-            obj.plannerGrasp = PlannerGrasp(obj.arm,obj.roundObject,obj.sensor);
+            obj.sensor = Sensor(obj.arm2D,obj.roundObject);
+            obj.plannerGrasp = PlannerGrasp(obj.arm2D,obj.roundObject,obj.sensor);
         end
         function delete(obj)
             obj.arm2D.delete();
