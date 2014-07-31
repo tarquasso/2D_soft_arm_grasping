@@ -3,7 +3,7 @@ classdef Arm2D < handle
     %   Detailed explanation goes here
     
     properties
-        dims                  % Arm dimensions
+        dims                     % Arm dimensions
         gripper2D;               % Gripper2D
         curvatureController      % curvature controller
     end
@@ -17,6 +17,7 @@ classdef Arm2D < handle
         %Constructor
         function obj = Arm2D()
             % Dimensions and orientation of the arm
+            
             obj.dims = struct();
             obj.dims.S = 6;      % is the total number of arm segments
             obj.dims.kMin = -20;     % minimum allowable curvature
@@ -32,6 +33,7 @@ classdef Arm2D < handle
             obj.gripper2D = Gripper2D;
             %Create a curvature controller
             obj.curvatureController = CurvatureController;
+
         end
         %Destructor
         function delete(obj)

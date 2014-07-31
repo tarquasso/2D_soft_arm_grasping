@@ -2,7 +2,7 @@ classdef ArmController2D < handle
     %UNTITLED Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties
+    properties(Access=private)
         arm2D;
         baseBoard;
         roundObject;
@@ -18,7 +18,7 @@ classdef ArmController2D < handle
             obj.arm2D = Arm2D();
             obj.baseBoard = BaseBoard();
             obj.roundObject = RoundObject();
-            obj.sensor = Sensor(obj.arm2D,obj.roundObject);
+            obj.sensor = Sensor(obj.arm2D,obj.roundObject,obj);
             obj.plannerGrasp = PlannerGrasp(obj.arm2D,obj.roundObject,obj.sensor);
             obj.simulationTime = 45;
             obj.shapeHistory = ShapeHistory(obj.arm2D.armDims.S, ...
@@ -28,6 +28,9 @@ classdef ArmController2D < handle
         function start(obj)
             % attach the frame callback to start the sensor
             obj.sensor.start();
+        end
+        function sensorMeasurementsDone(obj)
+            obj.plannerGrasp.plan();
         end
         % Destructor
         function delete(obj)

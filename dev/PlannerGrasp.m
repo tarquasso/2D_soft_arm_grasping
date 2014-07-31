@@ -17,6 +17,8 @@ classdef PlannerGrasp < handle
         end
         function delete(obj)
         end
+        function plan(obj)
+        end
     end
 end
 

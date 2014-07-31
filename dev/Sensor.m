@@ -3,8 +3,7 @@ classdef Sensor < handle
     %   Detailed explanation goes here
     
     properties
-        arm2D
-        roundObject
+
         frameRate
         natNetClient
         frameListener
@@ -14,13 +13,20 @@ classdef Sensor < handle
         positionTime;
         eulAngles;
     end
+    properties(Access=private)
+        arm2D
+        roundObject
+        armController2D          % handle to parent class
+    end
     
     methods(Access = public)
         % Constructor
-        function obj = Sensor(arm2DHandle,roundObjectHandle)
+        function obj = Sensor(arm2DHandle,roundObjectHandle,armController2DHandle)
             %Assign Handles
             obj.arm2D = arm2DHandle;
             obj.roundObject = roundObjectHandle;
+            obj.armController2D = armController2DHandle;
+            
             % Add NatNet .NET assembly so that Matlab can access its methods
             obj.createNatNetClient();
             % Connect to an OptiTrack server (Motive)
@@ -272,6 +278,13 @@ classdef Sensor < handle
                         obj.positionData = [x_off,y_off,z_off];
                         obj.positionTime = frameTime * obj.frameRate;
                         
+                        % Update Arm
+                        
+                        % Update Grippper
+                        % k and L of Gripper
+                        % Indicate to Arm Controller that measurements are
+                        % done
+                        obj.armController2D.sensorMeasurementsDone();
                     end
                 end
             catch err
