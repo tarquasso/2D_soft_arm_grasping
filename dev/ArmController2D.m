@@ -4,20 +4,28 @@ classdef ArmController2D < handle
     
     properties
         arm2D;
+        baseBoard;
         gripper2D;
         roundObject;
         sensor;
         plannerGrasp;
+        simulationTime;
+        shapeHistory;
     end
     
     methods(Access = public)
         % Constructor
         function obj = ArmController2D()
             obj.arm2D = Arm2D();
+            obj.baseBoard = BaseBoard();
             obj.gripper2D = Gripper2D();
             obj.roundObject = RoundObject();
             obj.sensor = Sensor(obj.arm2D,obj.roundObject);
             obj.plannerGrasp = PlannerGrasp(obj.arm2D,obj.roundObject,obj.sensor);
+            obj.simulationTime = 45;
+            obj.shapeHistory = ShapeHistory(obj.arm2D.armDims.S, ...
+                obj.simulationTime * obj.sensor.frameRate);
+
         end
         function start(obj)
             % attach the frame callback to start the sensor

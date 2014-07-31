@@ -7,8 +7,9 @@ classdef Arm2D < handle
         L = [];                  % is the current/measured length vector <--- MEASURE FROM MOCAP INITIAL FRAME
         above_max = 'false'      % boolean if any segments are above k limits
         k_measured               % measured arc curvatures
-        curvatureController     % curvature controller
+        curvatureController      % curvature controller
         k_target                 % target arc curvatures
+        armDims                  % Arm dimensions
     end
     
     properties(Dependent)
@@ -21,11 +22,21 @@ classdef Arm2D < handle
         k_max = 20;              % maximum allowable curvature
     end
     
-    methods
+    methods(Access = public)
         
         function obj = Arm2D()
+            % Dimensions and orientation of the arm
+            obj.armDims = struct();
+            obj.armDims.S = 6;
+            obj.armDims.lengths = repmat(2.37,1,obj.armDims.S) .* ...
+                unitsratio('m','inch');
+            obj.armDims.spos = [263.8; 152.7] .* unitsratio('m','mm');
+            obj.armDims.srot= pi/2;
+            
+            %Create a curvature controller
             obj.curvatureController = CurvatureController;
-        end      
+            
+        end
         function obj = setTarget(obj, val)
             dims = size(val);
             if( dims(1) == obj.N && dims(2) == 1)
@@ -54,9 +65,7 @@ classdef Arm2D < handle
             obj.k_measured = k;
             obj.L = L;
         end
-        
     end
-    
     
 end
 
