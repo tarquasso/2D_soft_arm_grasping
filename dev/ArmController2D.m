@@ -10,7 +10,7 @@ classdef ArmController2D < handle
         plannerGrasp;
     end
     
-    methods
+    methods(Access = public)
         % Constructor
         function obj = ArmController2D()
             obj.arm2D = Arm2D();
@@ -20,7 +20,8 @@ classdef ArmController2D < handle
             obj.plannerGrasp = PlannerGrasp(obj.arm2D,obj.roundObject,obj.sensor);
         end
         function start(obj)
-            obj.sensor.initialize();
+            % attach the frame callback to start the sensor
+            obj.sensor.start();
         end
         % Destructor
         function delete(obj)
@@ -30,7 +31,6 @@ classdef ArmController2D < handle
             obj.sensor.delete();
             obj.plannerGrasp.delete();
         end
-    end
-    
+    end  
 end
 

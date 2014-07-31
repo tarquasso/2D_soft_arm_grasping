@@ -15,14 +15,12 @@ classdef Sensor < handle
         eulAngles;
     end
     
-    methods
+    methods(Access = public)
         % Constructor
         function obj = Sensor(arm2DHandle,roundObjectHandle)
+            %Assign Handles
             obj.arm2D = arm2DHandle;
             obj.roundObject = roundObjectHandle;
-            
-        end
-        function initialize(obj)
             % Add NatNet .NET assembly so that Matlab can access its methods
             obj.createNatNetClient();
             % Connect to an OptiTrack server (Motive)
@@ -31,13 +29,13 @@ classdef Sensor < handle
             obj.getTrackedDataDescriptions()
             % get frame rate of tracking system
             obj.getFrameRate();
+        end
+        function start(obj)
             % setup callback triggered whenever a new frame is received
             obj.setupFrameCallback()
-            
         end
         % Destructor
         function delete(obj)
-            
             % cleanup
             if(~isempty(obj.natNetClient))
                 obj.natNetClient.Uninitialize();
@@ -260,7 +258,7 @@ classdef Sensor < handle
                         % find foward and inverse kinematics algorithm to use in
                         % calculating kappa and L
                         % populate the matrix with information
-
+                        
                         obj.eulAngles = Sensor.extractAnglesFromBody( obj.frameOfData.RigidBodies(1) );
                         
                         x_off = obj.frameOfData.RigidBodies(1).x;
