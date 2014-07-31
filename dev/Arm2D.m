@@ -7,9 +7,9 @@ classdef Arm2D < handle
         L = [];                  % is the current/measured length vector <--- MEASURE FROM MOCAP INITIAL FRAME
         k_measured               % measured arc curvatures
         k_target                 % target arc curvatures
-        curvatureController      % curvature controller
         armDims                  % Arm dimensions
-        gripper;                 % Gripper2D
+        gripper2D;               % Gripper2D
+        curvatureController      % curvature controller
     end
        
     properties(Constant)
@@ -29,9 +29,15 @@ classdef Arm2D < handle
             obj.armDims.spos = [263.8; 152.7] .* unitsratio('m','mm');
             obj.armDims.srot= pi/2;
             
+            %Create gripper2D before curvature controller
+            obj.gripper2D = Gripper2D;
             %Create a curvature controller
             obj.curvatureController = CurvatureController;
-            obj.gripper = Gripper2D;
+        end
+        
+        function delete(obj)      
+            obj.gripper2D.delete();
+            obj.curvatureController.delete();
         end
         
         function set.k_target(obj, val)
@@ -155,15 +161,15 @@ classdef Arm2D < handle
         
         function [x, y, theta] = recursive_forward_kinematics(obj, gripper_on, k, i, s)
 
-           % gripper_on - boolean if gripper attached
+           % gripper_on - boolean if gripper2D attached
            % k - either measured or target curvature vector
            % i - is the segment of interest
            % s - is the length of interest along segment i
            
            if ( gripper_on )
                 N = obj.N + 1;
-                L = [obj.L; obj.gripper.L];
-                k = [obj.k_measured; obj.gripper.k];
+                L = [obj.L; obj.gripper2D.L];
+                k = [obj.k_measured; obj.gripper2D.k];
            else
                 N = obj.N;
                 theta0 = obj.theta0;

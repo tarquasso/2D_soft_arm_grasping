@@ -5,7 +5,6 @@ classdef ArmController2D < handle
     properties
         arm2D;
         baseBoard;
-        gripper2D;
         roundObject;
         sensor;
         plannerGrasp;
@@ -18,7 +17,6 @@ classdef ArmController2D < handle
         function obj = ArmController2D()
             obj.arm2D = Arm2D();
             obj.baseBoard = BaseBoard();
-            obj.gripper2D = Gripper2D();
             obj.roundObject = RoundObject();
             obj.sensor = Sensor(obj.arm2D,obj.roundObject);
             obj.plannerGrasp = PlannerGrasp(obj.arm2D,obj.roundObject,obj.sensor);
