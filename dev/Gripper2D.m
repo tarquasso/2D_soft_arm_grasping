@@ -3,8 +3,8 @@ classdef Gripper2D <handle
     %   Detailed explanation goes here
     
     properties
-        L;
-        k;
+        L = 4.15*0.0254;
+        k = 0.1;
     end
     
     methods
