@@ -30,7 +30,7 @@ classdef Arm2D < handle
             obj.armDims.srot= pi/2;
             
             %Create a curvature controller
-            obj.curvatureController = CurvatureController;
+            %obj.curvatureController = CurvatureController;
             obj.gripper = Gripper2D;
         end
         
