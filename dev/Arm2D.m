@@ -38,7 +38,8 @@ classdef Arm2D < handle
             obj.gripper2D.delete();
             obj.curvatureController.delete();
         end
-        function set_k_target(obj, val)
+        %Set Target Curvatures of the 2D arm
+        function setTargetCurvatures(obj, val)
             l_valSize = size(val);
             if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
                 
@@ -63,7 +64,7 @@ classdef Arm2D < handle
             end
         end
         
-        function set_k_measured(obj, val)
+        function setMeasuredCurvatures(obj, val)
             l_valSize = size(val);
             if( l_valSize(1) == obj.N && l_valSize(2) == 1)
                 obj.kMeasured = val;
@@ -72,7 +73,7 @@ classdef Arm2D < handle
             end
         end
         
-        function set_L(obj, val)
+        function setMeasuredLengths(obj, val)
             l_valSize = size(val);
             if( l_valSize(1) == obj.N && l_valSize(2) == 1)
                 obj.L = val;
@@ -81,7 +82,7 @@ classdef Arm2D < handle
             end
         end
         
-        function [x, y, theta] = recursive_forward_kinematics(obj, gripper_on, k, i, s)
+        function [x, y, theta] = recursiveForwardKinematics(obj, gripper_on, k, i, s)
             
             % gripper_on - boolean if gripper2D attached
             % k - either measured or target curvature vector
@@ -113,7 +114,7 @@ classdef Arm2D < handle
                 x_init(i) = 0.0;
                 y_init(i) = 0.0;
             else
-                [x_init(i), y_init(i), theta_init(i)] = obj.recursive_forward_kinematics(obj, gripper_on, k, i-1, l_L(i-1));
+                [x_init(i), y_init(i), theta_init(i)] = obj.recursiveForwardKinematics(obj, gripper_on, k, i-1, l_L(i-1));
             end
             
             theta = theta_init(i) + k(i)*s;
@@ -122,7 +123,7 @@ classdef Arm2D < handle
             
         end
         
-        function h = draw(obj, gripper_on)
+        function h = plotArmToHandle(obj, gripper_on)
             
             M = 20;
             total = 1;
@@ -132,7 +133,9 @@ classdef Arm2D < handle
             
             for i=1:N
                 for j=1:M
-                    [x(total), y(total), theta(total)] = recursive_forward_kinematics(obj, gripper_on, k, i, L(i)*(j/M));
+                    [x(total), y(total), theta(total)] = ...
+                        recursiveForwardKinematics(obj, gripper_on, k, i, ...
+                        obj.L(i)*(j/M));
                     total = total + 1;
                 end
             end
