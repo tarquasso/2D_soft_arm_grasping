@@ -32,10 +32,10 @@ classdef ArmController2D < handle
         % Destructor
         function delete(obj)
             obj.arm2D.delete();
-            obj.gripper2D.delete();
             obj.roundObject.delete();
             obj.sensor.delete();
             obj.plannerGrasp.delete();
+            obj.shapeHistory.delete();
         end
     end  
 end
