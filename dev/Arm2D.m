@@ -35,7 +35,7 @@ classdef Arm2D < handle
         %Destructor
         function delete(obj)
             obj.gripper2D.delete();
-            obj.curvatureController.delete();
+            %obj.curvatureController.delete();
         end
         %Set Target Curvatures of the 2D arm
         function setTargetCurvatures(obj, val)
@@ -114,6 +114,37 @@ classdef Arm2D < handle
             x = x_init(i) + sin(theta)/k(i) - sin(theta_init(i))/k(i);
             y = y_init(i) - cos(theta)/k(i) + cos(theta_init(i))/k(i);
             
+        end
+        %Inverse kinematic transform of the 2D arm
+        function [kTarget] = inverseKinematics(obj, xTarget, yTarget, thetaTarget, kGuess)
+            A = [];
+            b = [];
+            Aeq = [];
+            beq = [];
+            lb = obj.dims.kMin*ones(6,1);
+            ub = obj.dims.kMax*ones(6,1);
+            
+            l_optTime = tic;
+            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
+            kTarget = fmincon(@cost,kGuess,A,b,Aeq,beq,lb,ub,@noncon,options);
+            toc(l_optTime)
+            
+            function [c,ceq] = noncon(k)
+                c = [];                  % nonlinear inequality constraints
+                ceq = zeros(1,3);        % nonlinear equalitity constraints
+                l_i = obj.dims.S;
+                l_s = obj.L(l_i);
+                
+                [xMeasured, yMeasured, thetaMeasured] = obj.recursiveForwardKinematics(k, l_i, l_s);
+                ceq(1) = xMeasured - xTarget;
+                ceq(2) = yMeasured - yTarget;
+                ceq(3) = thetaMeasured - thetaTarget;
+            end
+            
+            function [E_tot, g] = cost(k)
+                E_tot = sum(k.^2);
+                g = 2.*k;
+            end
         end
         %Plot the measured state of the 2D
         function h = plotArmToHandle(obj)
