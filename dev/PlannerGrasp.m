@@ -1,60 +1,59 @@
 classdef PlannerGrasp < handle
-    %PLANNERGRASP Summary of this class goes here
-    %   Detailed explanation goes here
     
     properties
         arm2D;
-        roundObject;    
+        roundObject;
     end
     
     properties(SetAccess=private,GetAccess=public)
-       state;
-       previousObjPosition;
-       changeInObjPositionThreshold;
-       timeAtObjPosition;
-       timeAtObjPositionThreshold;
-       
-       initialTipPoseComputed;
-       initialTipPose;
-       alignmentTipPoseComputed;
-       alignmentTipPose;
-       advancedTipPose;
-       graspCurvature;
-       
-       alignmentTipTransitTime;
-       advancementTipTransitTime;
-       graspTime;
-       planTime;
-       
+        state;
+        previousObjPosition;
+        changeInObjPositionThreshold;
+        timeAtObjPosition;
+        timeAtObjPositionThreshold;
+        
+        initialTipPoseComputed;
+        initialTipPose;
+        alignmentTipPoseComputed;
+        alignmentTipPose;
+        advancedTipPose;
+        graspCurvature;
+        
+        alignmentTipTransitTime;
+        advancementTipTransitTime;
+        graspTime;
+        planTime;
+        
     end
     
     methods
+        %Constructor
         function obj = PlannerGrasp(arm2DHand,roundObjectHand)
-           obj.arm2D =  arm2DHand;
-           obj.roundObject = roundObjectHand;
-           obj.state = 1;
-           obj.previousObjPosition = [0; 0];
-           obj.changeInObjPositionThreshold = 0.005; % half of a centimeter
-           obj.timeAtObjPosition = 0.0;
-           obj.timeAtObjPositionThreshold = 4.0;
-
-           obj.initialTipPoseComputed = 0;
-           obj.initialTipPose = zeros(3,1);
-           
-           obj.alignmentTipPoseComputed = 0;
-           obj.alignmentTipPose = zeros(3,1);
-           obj.advancedTipPose = zeros(3,1); 
-           obj.graspCurvature = obj.arm2D.gripper2D.dims.kMax;
-           
-           obj.alignmentTipTransitTime = 5.0;
-           obj.advancementTipTransitTime = 5.0;
-           obj.graspTime = 3.0;
-           
+            obj.arm2D =  arm2DHand;
+            obj.roundObject = roundObjectHand;
+            obj.state = 1;
+            obj.previousObjPosition = [0; 0];
+            obj.changeInObjPositionThreshold = 0.005; % half of a centimeter
+            obj.timeAtObjPosition = 0.0;
+            obj.timeAtObjPositionThreshold = 4.0;
+            
+            obj.initialTipPoseComputed = 0;
+            obj.initialTipPose = zeros(3,1);
+            
+            obj.alignmentTipPoseComputed = 0;
+            obj.alignmentTipPose = zeros(3,1);
+            obj.advancedTipPose = zeros(3,1);
+            obj.graspCurvature = obj.arm2D.gripper2D.dims.kMax;
+            
+            obj.alignmentTipTransitTime = 5.0;
+            obj.advancementTipTransitTime = 5.0;
+            obj.graspTime = 3.0;
+            
         end
-        
+        %Destructor
         function delete(obj)
         end
-        
+        %Plan dispatcher
         function plan(obj)
             
             switch obj.state
@@ -68,10 +67,10 @@ classdef PlannerGrasp < handle
                     obj.graspObject();
                 otherwise
                     display('plan executed')
-             end
-                                
+            end
+            
         end
-         
+        %Determine whether or not and object has been placed
         function checkObjPlacement(obj)
             
             l_currentObjPosition = [obj.roundObject.x; obj.roundObject.y];
@@ -94,13 +93,13 @@ classdef PlannerGrasp < handle
                 end
                 
                 obj.planTime = tic; % get current time
-
+                
             end
             
             obj.previousObjPosition = l_currentObjPosition; %set to current position
-                  
+            
         end
-        
+        %Determine and drive arm tip to an alignment pose
         function alignArmTip(obj)
             
             if( obj.initialTipPoseComputed == 0 ) % compute initial tip pose
@@ -166,18 +165,14 @@ classdef PlannerGrasp < handle
                 end
             end
         end
-        
-        function valBetween = linInterpolate(obj, tCurrent, tMax, valInitial, valFinal)
-            valBetween = valInitial + (valFinal - valInitial)*(tCurrent)/(tMax);
-        end
-        
+        %Determine and drive arm tip to an advanced pose alongside object
         function advanceArmTip(obj)
             %%%%%%%%%%%%%%%%% is manipulator tip advanced? %%%%%%%%%%%%%%%%%
             l_k = obj.arm2D.kMeasured;
             l_L = obj.arm2D.L;
             l_i = obj.arm2D.dims.S;
             [l_measuredX, l_measuredY, l_measuredTheta] = obj.arm2D.recursiveForwardKinematics(l_k, l_i, l_L(l_i));
-     
+            
             %%%%%%%%%%%%%%%%%%%%% if the tip is advanced %%%%%%%%%%%%%%%%%%
             if( norm( [l_measuredX; l_measuredY] - [obj.advancedTipPose(1); obj.advancedTipPose(2)],2 ) <= 0.01 ...
                     && norm( l_measuredTheta - obj.advancedTipPose(3), 2) <= 0.1 )
@@ -204,7 +199,7 @@ classdef PlannerGrasp < handle
                 end
             end
         end
-        
+        %Actuate the gripper to grasp object
         function graspObject(obj)
             %%%%%%%%%%%%%%%% is gripper at grasp curvature? %%%%%%%%%%%%%%%
             l_k = obj.arm2D.gripper2D.kMeasured;
@@ -215,7 +210,7 @@ classdef PlannerGrasp < handle
                 display('Gripper has grasped');
                 obj.planTime = tic; % get current time
                 
-            %%%%%%%%%%%% otherwise advance gripper curvature %%%%%%%%%%%%%%
+                %%%%%%%%%%%% otherwise advance gripper curvature %%%%%%%%%%%%%%
             else
                 if( toc(obj.planTime) <= obj.graspTime )
                     l_kInit = 0; % <---- Unactauted gripper curvature
@@ -226,7 +221,10 @@ classdef PlannerGrasp < handle
                 end
             end
         end
-        
+        %An interporlation function
+        function valBetween = linInterpolate(obj, tCurrent, tMax, valInitial, valFinal)
+            valBetween = valInitial + (valFinal - valInitial)*(tCurrent)/(tMax);
+        end
     end
 end
 

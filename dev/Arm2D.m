@@ -1,16 +1,17 @@
 classdef Arm2D < handle
-   
+    
     properties
         dims                     % Arm dimensions
         gripper2D;               % Gripper2D
         curvatureController      % curvature controller
     end
+    
     properties(SetAccess=private,GetAccess=public)
         L                        % is the current/measured length vector <--- MEASURE FROM MOCAP INITIAL FRAME
         kMeasured                % measured arc curvatures
-        kTarget                  % target arc curvatures      
+        kTarget                  % target arc curvatures
     end
-   
+    
     methods
         %Constructor
         function obj = Arm2D()
@@ -20,7 +21,7 @@ classdef Arm2D < handle
             obj.dims.kMin = -20;     % minimum allowable curvature
             obj.dims.kMax = 20;      % maximum allowable curvature
             obj.dims.theta0 = pi/2;   % is the current/measured initial orientation of the first segment
-      
+            
             obj.dims.lengths = repmat(2.37,1,obj.dims.S) .* ...
                 unitsratio('m','inch');
             obj.dims.spos = [263.8; 152.7] .* unitsratio('m','mm');
@@ -30,7 +31,7 @@ classdef Arm2D < handle
             obj.gripper2D = Gripper2D;
             %Create a curvature controller
             %obj.curvatureController = CurvatureController;
-
+            
         end
         %Destructor
         function delete(obj)
@@ -80,18 +81,18 @@ classdef Arm2D < handle
                 error('The size of measured L does not match the arm.');
             end
         end
-        %Forward kinematic transformation of the 2D arm 
+        %Forward kinematic transformation of the 2D arm
         function [x, y, theta] = recursiveForwardKinematics(obj, k, i, s)
             
             % gripper_on - boolean if gripper2D attached
             % k - either measured or target curvature vector
             % i - is the segment of interest
             % s - is the length of interest along segment i
-
+            
             l_N = obj.dims.S + 1; % number of arm links plus the gripper
-            l_L = [obj.L; obj.gripper2D.L];  
+            l_L = [obj.L; obj.gripper2D.L];
             l_valSize = size(k);
-
+            
             if( i > l_valSize(1) )
                 error('The size of k does not match the segment of interest.');
             end
@@ -152,29 +153,28 @@ classdef Arm2D < handle
             l_N = obj.dims.S + 1;
             l_L = [obj.L; obj.gripper2D.L];
             l_k = [obj.kMeasured; obj.gripper2D.kMeasured];
-
+            
             M = 20;
             total = 1;
             x = zeros(1, l_N*M);
             y = zeros(1, l_N*M);
             theta = zeros(1, l_N*M);
-
+            
             for i=1:l_N
                 for j=1:M
                     [x(total), y(total), theta(total)] = obj.recursiveForwardKinematics( l_k, i, l_L(i)*(j/M));
                     total = total + 1;
                 end
             end
-
+            
             hold on
             axis([-0.30 0.30 -0.10 0.50])
             axis square
-
+            
             h = plot(x(1:end-20),y(1:end-20), 'r', x(end-20:end),y(end-20:end), 'k', 'LineWidth', 2);
             drawnow;
             
         end
-        
     end
     
 end
