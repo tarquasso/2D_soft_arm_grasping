@@ -21,7 +21,7 @@ classdef ArmController2D < handle
             obj.sensor = Sensor(obj.arm2D,obj.roundObject,obj);
             obj.plannerGrasp = PlannerGrasp(obj.arm2D,obj.roundObject,obj.sensor);
             obj.simulationTime = 45;
-            obj.shapeHistory = ShapeHistory(obj.arm2D.armDims.S, ...
+            obj.shapeHistory = ShapeHistory(obj.arm2D.dims.S, ...
                 obj.simulationTime * obj.sensor.frameRate);
 
         end
