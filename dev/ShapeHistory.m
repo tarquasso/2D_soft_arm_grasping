@@ -7,9 +7,9 @@ classdef ShapeHistory < handle
     properties
         S   % Number of segments in the arm
         N   % Size of samples buffer
-        i   % Current index 
+        i   % Current index
         
-        timestamps      % Timestamps of the state 
+        timestamps      % Timestamps of the state
         start_pts       % Positions of the start point
         shapes          % Shapes of the segments
         target_curvatures          % filtered curvatures
@@ -45,29 +45,33 @@ classdef ShapeHistory < handle
         end
         
         function timestamp = timestamp(obj, i)
-            % Returns start points indexing from the end 
+            % Returns start points indexing from the end
             timestamp = obj.timestamps(obj.i - i);
         end
         
         function st_point = st_point(obj, i)
-            % Returns start points indexing from the end 
+            % Returns start points indexing from the end
             st_point = obj.st_points(obj.i - i);
         end
         
         function shape = shape(obj, i)
-            % Returns start points indexing from the end 
+            % Returns start points indexing from the end
             shape = obj.shapes(obj.i - i);
         end
         
         function target_curvature = target_curvature(obj, i)
-            % Returns start points indexing from the end 
+            % Returns start points indexing from the end
             target_curvature  = obj.target_curvatures(obj.i - i);
         end
         
         function cmd = cmd(obj, i)
-            % Returns start points indexing from the end 
+            % Returns start points indexing from the end
             cmd  = obj.cmds(obj.i - i);
         end
+        %Destructor
+        function delete(obj)
+        end
+        
     end
     
 end
