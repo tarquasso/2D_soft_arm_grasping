@@ -7,9 +7,11 @@ classdef Arm2D < handle
     end
     
     properties(SetAccess=private,GetAccess=public)
-        L                        % is the current/measured length vector <--- MEASURE FROM MOCAP INITIAL FRAME
-        kMeasured                % measured arc curvatures
+        arcLenMeas               % is the current/measured length vector <--- MEASURE FROM MOCAP INITIAL FRAME
+        thetaMeas                  % angle vector describing rotation of each segment
+        kMeas                    % measured arc curvatures
         kTarget                  % target arc curvatures
+        
     end
     
     methods
@@ -17,15 +19,14 @@ classdef Arm2D < handle
         function obj = Arm2D()
             % Dimensions and orientation of the arm
             obj.dims = struct();
-            obj.dims.S = 6;      % is the total number of arm segments
+            obj.dims.S = 6;          % is the total number of arm segments
             obj.dims.kMin = -20;     % minimum allowable curvature
             obj.dims.kMax = 20;      % maximum allowable curvature
-            obj.dims.theta0 = pi/2;   % is the current/measured initial orientation of the first segment
+            obj.dims.thetaStart = pi/2;   % is the current/measured initial orientation of the first segment
+            %obj.dims.spos = [263.8; 152.7] .* unitsratio('m','mm');
             
             obj.dims.lengths = repmat(2.37,1,obj.dims.S) .* ...
                 unitsratio('m','inch');
-            obj.dims.spos = [263.8; 152.7] .* unitsratio('m','mm');
-            obj.dims.srot = pi/2;
             
             %Create gripper2D before curvature controller
             obj.gripper2D = Gripper2D;
@@ -54,7 +55,7 @@ classdef Arm2D < handle
                 if( strcmp(above_max, 'false') )
                     obj.kTarget = val;
                     %obj.curvatureController.sendCurvatureErrors(...
-                    %    obj.kTarget', obj.kMeasured);
+                    %    obj.kTarget', obj.kMeas);
                 else
                     error('An element of k exceeds allowable limit')
                 end
@@ -63,81 +64,158 @@ classdef Arm2D < handle
                 error('The size of k does not match the arm.')
             end
         end
-        %Set Measured Curvatures of the 2D arm
-        function setMeasuredCurvatures(obj, val)
-            l_valSize = size(val);
-            if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
-                obj.kMeasured = val;
-            else
-                error('The size of measured k does not match the arm.');
-            end
-        end
-        %Set Measured Lengths of the 2D arm
-        function setMeasuredLengths(obj, val)
-            l_valSize = size(val);
-            if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
-                obj.L = val;
-            else
-                error('The size of measured L does not match the arm.');
-            end
-        end
+%         %Set Measured Curvatures of the 2D arm
+%         function setMeasuredCurvatures(obj, val)
+%             l_valSize = size(val);
+%             if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
+%                 obj.kMeas = val;
+%             else
+%                 error('The size of measured k does not match the arm.');
+%             end
+%         end
+%         %Set Measured Lengths of the 2D arm
+%         function setMeasuredLengths(obj, val)
+%             l_valSize = size(val);
+%             if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
+%                 obj.arcLenMeas = val;
+%             else
+%                 error('The size of measured arcLenMeas does not match the arm.');
+%             end
+%         end
         
-        function [ segs, spos ] = get_segments( obj, centroids, spos, srot)
-            
-            %GET_SEGMENTS Calculates the segments based on marker positions
-            %   The function operates in two modes:
+        function setSegmentValues( obj, segPos)
+            %SETSEGMENTVALUES Calculates the segments based on marker positions
+            %   setSegmentValues( segPos )
             %
-            %   [ segs ] = calculate_segments( raw_markers, start_pt, start_rot, lengths, old_markers )
-            %
-            %   raw_markers 2xM matrix - positions of M detected markers
-            %   spos        2x1 matrix - position of the root of the arm
-            %   srot            scalar - rotation of the root of the arm
-            %   lengths     1xS matrix - lengths of arm segments
-            %   old_markers 2xS matrix - positions of old markers
-            
-            % Initialize output arguments
-            segs = NaN;
-            
-            % Prepare the matrix for storing segment properties
-            segs = NaN(6,S);
-            
-            % Check #1 - is there a sufficient number of detected centroids?
-            if size(centroids, 2) < obj.dims.S+1
-                error = 'not_enough_markers';
-                return
-            end
-            
-            % Assign starting values for the first virtual segment
-            obj.pos1(1) = spos;
-            obj.rot1(1) = srot;
-            
-            % Calculate the curvatures and angles using the 2 points method
-            for s = 1:S
-                % Calculate properties of the current segment
-                [obj.kMeasured, obj.rot2(s)] = get_arc(obj.pos1(s), obj.rot1(s), obj.pos2(s));
-                arclen = wrapToPi(rot2 - rot1) / k;
+            %   segPos      2xM matrix - center positions of M segments
+           
+            % Check #1 - are there enough segments and is the position dimension correct?
+            if (size(segPos, 2) ~= obj.dims.S+1)
+                error('[Arm2D] Not the right amount of segment positions parsed in.');
+            elseif (size(segPos, 1) ~= 2)
+                error('[Arm2D] not a 2D position value!');
+            else
+                % init thetaMeas and arcLenMeas!
+                obj.thetaMeas(1) = obj.dims.thetaStart;
                 
-                % Save properties of the current segment
-                segs(:,s) = [rot1; pos2; rot2; k; arclen];
-                
-                % Check #2 - is the calculated length more than 10% different than the
-                % expected length?
-                if abs(arclen - obj.dims.lengths(s)) / obj.dims.lengths(s) > 0.20
-                    error = 'bad_arclength';
-                    return
+                % Calculate the curvatures and angles using the 2 points method
+                for s = 1:obj.dims.S
+                    % Calculate properties of the current segment
+                    [obj.kMeas(s), obj.thetaMeas(s+1)] = Arm2D.singSegIK(...
+                        segPos(1:2,s),obj.thetaMeas(s), segPos(1:2,s+1));
+                    obj.arcLenMeas(s) = wrapToPi(...
+                        obj.thetaMeas(s+1)-obj.thetaMeas(s)) / obj.kMeas(s);
+                    
+                    % Check #2 - is the calculated length more than 20% different than the
+                    % expected length?
+                    l_lengthDiff = (obj.arcLenMeas-obj.dims.lengths(s))/obj.dims.lengths(s);
+                    if (abs(l_lengthDiff) > 0.20)
+                        error('bad arclength for Segment %i: lengt: %f',s,l_lengthDiff);
+                    end
                 end
-                
-                % Prepare properties for the next segment
-                pos1 = pos2;
-                rot1 = rot2;
             end
-           
-           
+            
         end
         
+        %Forward kinematic transformation of the 2D arm
+        function [x, y, theta] = recursiveForwardKinematics(obj, k, i, s)
+            
+            % gripper_on - boolean if gripper2D attached
+            % k - either measured or target curvature vector
+            % i - is the segment of interest
+            % s - is the length of interest along segment i
+            
+            l_N = obj.dims.S + 1; % number of arm links plus the gripper
+            l_arcLen = [obj.arcLenMeas; obj.gripper2D.arcLenMeas];
+            l_valSize = size(k);
+            
+            if( i > l_valSize(1) )
+                error('The size of k does not match the segment of interest.');
+            end
+            
+            l_thetaStart = obj.dims.thetaStart;
+            
+            theta_init = zeros(1,l_N);
+            x_init = zeros(1,l_N);
+            y_init = zeros(1,l_N);
+            
+            if( i == 1)
+                theta_init(i) = l_thetaStart;
+                x_init(i) = 0.0;
+                y_init(i) = 0.0;
+            else
+                [x_init(i), y_init(i), theta_init(i)] = obj.recursiveForwardKinematics(k, i-1, l_arcLen(i-1) );
+            end
+            
+            theta = theta_init(i) + k(i)*s;
+            x = x_init(i) + sin(theta)/k(i) - sin(theta_init(i))/k(i);
+            y = y_init(i) - cos(theta)/k(i) + cos(theta_init(i))/k(i);
+            
+        end
+        %Inverse kinematic transform of the 2D arm
+        function [kTarget] = inverseKinematics(obj, xTarget, yTarget, thetaTarget, kGuess)
+            A = [];
+            b = [];
+            Aeq = [];
+            beq = [];
+            lb = obj.dims.kMin*ones(6,1);
+            ub = obj.dims.kMax*ones(6,1);
+            
+            l_optTime = tic;
+            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
+            kTarget = fmincon(@cost,kGuess,A,b,Aeq,beq,lb,ub,@noncon,options);
+            toc(l_optTime)
+            
+            function [c,ceq] = noncon(k)
+                c = [];                  % nonlinear inequality constraints
+                ceq = zeros(1,3);        % nonlinear equalitity constraints
+                l_i = obj.dims.S;
+                l_s = obj.arcLenMeas(l_i);
+                
+                [xMeasured, yMeasured, thetaMeasured] = obj.recursiveForwardKinematics(k, l_i, l_s);
+                ceq(1) = xMeasured - xTarget;
+                ceq(2) = yMeasured - yTarget;
+                ceq(3) = thetaMeasured - thetaTarget;
+            end
+            
+            function [E_tot, g] = cost(k)
+                E_tot = sum(k.^2);
+                g = 2.*k;
+            end
+        end
+        %Plot the measured state of the 2D
+        function h = plotArmToHandle(obj)
+            
+            l_N = obj.dims.S + 1;
+            l_arcLen = [obj.arcLenMeas; obj.gripper2D.arcLenMeas];
+            l_k = [obj.kMeas; obj.gripper2D.kMeas];
+            
+            M = 20;
+            total = 1;
+            x = zeros(1, l_N*M);
+            y = zeros(1, l_N*M);
+            theta = zeros(1, l_N*M);
+            
+            for i=1:l_N
+                for j=1:M
+                    [x(total), y(total), theta(total)] = obj.recursiveForwardKinematics( l_k, i, l_arcLen(i)*(j/M));
+                    total = total + 1;
+                end
+            end
+            
+            hold on
+            axis([-0.30 0.30 -0.10 0.50])
+            axis square
+            
+            h = plot(x(1:end-20),y(1:end-20), 'r', x(end-20:end),y(end-20:end), 'k', 'LineWidth', 2);
+            drawnow;
+            
+        end
+    end
+    methods(Static)
         %Single Segment Inverse kinematics
-        function [ k, erot ] = get_arc(obj, spos, srot, epos )
-            %GET_ARC Calculates the curvature of a segment between spos and epos
+        function [ k, erot ] = singSegIK(spos, srot, epos )
+            %SINGSEGIK Calculates the curvature of a segment between spos and epos
             %
             %   INPUT:
             %   spos    2x1 vector - start position
@@ -200,101 +278,6 @@ classdef Arm2D < handle
             %      if(erot <= 0.0)
             %         erot = 2*pi + erot;
             %      end
-            
-        end
-        
-        %Forward kinematic transformation of the 2D arm
-        function [x, y, theta] = recursiveForwardKinematics(obj, k, i, s)
-            
-            % gripper_on - boolean if gripper2D attached
-            % k - either measured or target curvature vector
-            % i - is the segment of interest
-            % s - is the length of interest along segment i
-            
-            l_N = obj.dims.S + 1; % number of arm links plus the gripper
-            l_L = [obj.L; obj.gripper2D.L];
-            l_valSize = size(k);
-            
-            if( i > l_valSize(1) )
-                error('The size of k does not match the segment of interest.');
-            end
-            
-            l_theta0 = obj.dims.theta0;
-            
-            theta_init = zeros(1,l_N);
-            x_init = zeros(1,l_N);
-            y_init = zeros(1,l_N);
-            
-            if( i == 1)
-                theta_init(i) = l_theta0;
-                x_init(i) = 0.0;
-                y_init(i) = 0.0;
-            else
-                [x_init(i), y_init(i), theta_init(i)] = obj.recursiveForwardKinematics(k, i-1, l_L(i-1) );
-            end
-            
-            theta = theta_init(i) + k(i)*s;
-            x = x_init(i) + sin(theta)/k(i) - sin(theta_init(i))/k(i);
-            y = y_init(i) - cos(theta)/k(i) + cos(theta_init(i))/k(i);
-            
-        end
-        %Inverse kinematic transform of the 2D arm
-        function [kTarget] = inverseKinematics(obj, xTarget, yTarget, thetaTarget, kGuess)
-            A = [];
-            b = [];
-            Aeq = [];
-            beq = [];
-            lb = obj.dims.kMin*ones(6,1);
-            ub = obj.dims.kMax*ones(6,1);
-            
-            l_optTime = tic;
-            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
-            kTarget = fmincon(@cost,kGuess,A,b,Aeq,beq,lb,ub,@noncon,options);
-            toc(l_optTime)
-            
-            function [c,ceq] = noncon(k)
-                c = [];                  % nonlinear inequality constraints
-                ceq = zeros(1,3);        % nonlinear equalitity constraints
-                l_i = obj.dims.S;
-                l_s = obj.L(l_i);
-                
-                [xMeasured, yMeasured, thetaMeasured] = obj.recursiveForwardKinematics(k, l_i, l_s);
-                ceq(1) = xMeasured - xTarget;
-                ceq(2) = yMeasured - yTarget;
-                ceq(3) = thetaMeasured - thetaTarget;
-            end
-            
-            function [E_tot, g] = cost(k)
-                E_tot = sum(k.^2);
-                g = 2.*k;
-            end
-        end
-        %Plot the measured state of the 2D
-        function h = plotArmToHandle(obj)
-            
-            l_N = obj.dims.S + 1;
-            l_L = [obj.L; obj.gripper2D.L];
-            l_k = [obj.kMeasured; obj.gripper2D.kMeasured];
-            
-            M = 20;
-            total = 1;
-            x = zeros(1, l_N*M);
-            y = zeros(1, l_N*M);
-            theta = zeros(1, l_N*M);
-            
-            for i=1:l_N
-                for j=1:M
-                    [x(total), y(total), theta(total)] = obj.recursiveForwardKinematics( l_k, i, l_L(i)*(j/M));
-                    total = total + 1;
-                end
-            end
-            
-            hold on
-            axis([-0.30 0.30 -0.10 0.50])
-            axis square
-            
-            h = plot(x(1:end-20),y(1:end-20), 'r', x(end-20:end),y(end-20:end), 'k', 'LineWidth', 2);
-            drawnow;
             
         end
     end
