@@ -5,8 +5,8 @@ classdef Gripper2D <handle
     end
     
     properties(SetAccess=private,GetAccess=public)
-        L;
-        kMeasured;
+        arcLenMeas;
+        kMeas;
         kTarget;
     end
     
@@ -48,7 +48,7 @@ classdef Gripper2D <handle
         function setMeasuredCurvatures(obj, val)
             l_valSize = size(val);
             if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
-                obj.kMeasured = val;
+                obj.kMeas = val;
             else
                 error('The size of measured k does not match the gripper.');
             end
@@ -57,9 +57,9 @@ classdef Gripper2D <handle
         function setMeasuredLengths(obj, val)
             l_valSize = size(val);
             if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
-                obj.L = val;
+                obj.arcLenMeas = val;
             else
-                error('The size of measured L does not match the gripper.');
+                error('The size of arcLenMeas does not match the gripper.');
             end
         end
     end
