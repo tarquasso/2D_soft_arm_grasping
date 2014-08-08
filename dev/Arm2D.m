@@ -81,6 +81,60 @@ classdef Arm2D < handle
                 error('The size of measured L does not match the arm.');
             end
         end
+        
+        function [ segs, spos ] = get_segments( obj, centroids, spos, srot)
+            
+            %GET_SEGMENTS Calculates the segments based on marker positions
+            %   The function operates in two modes:
+            %
+            %   [ segs ] = calculate_segments( raw_markers, start_pt, start_rot, lengths, old_markers )
+            %
+            %   raw_markers 2xM matrix - positions of M detected markers
+            %   spos        2x1 matrix - position of the root of the arm
+            %   srot            scalar - rotation of the root of the arm
+            %   lengths     1xS matrix - lengths of arm segments
+            %   old_markers 2xS matrix - positions of old markers
+            
+            % Initialize output arguments
+            segs = NaN;
+            
+            % Prepare the matrix for storing segment properties
+            segs = NaN(6,S);
+            
+            % Check #1 - is there a sufficient number of detected centroids?
+            if size(centroids, 2) < obj.dims.S+1
+                error = 'not_enough_markers';
+                return
+            end
+            
+            % Assign starting values for the first virtual segment
+            obj.pos1(1) = spos;
+            obj.rot1(1) = srot;
+            
+            % Calculate the curvatures and angles using the 2 points method
+            for s = 1:S
+                % Calculate properties of the current segment
+                [obj.kMeasured, obj.rot2(s)] = get_arc(obj.pos1(s), obj.rot1(s), obj.pos2(s));
+                arclen = wrapToPi(rot2 - rot1) / k;
+                
+                % Save properties of the current segment
+                segs(:,s) = [rot1; pos2; rot2; k; arclen];
+                
+                % Check #2 - is the calculated length more than 10% different than the
+                % expected length?
+                if abs(arclen - obj.dims.lengths(s)) / obj.dims.lengths(s) > 0.20
+                    error = 'bad_arclength';
+                    return
+                end
+                
+                % Prepare properties for the next segment
+                pos1 = pos2;
+                rot1 = rot2;
+            end
+           
+           
+        end
+        
         %Single Segment Inverse kinematics
         function [ k, erot ] = get_arc(obj, spos, srot, epos )
             %GET_ARC Calculates the curvature of a segment between spos and epos

@@ -3,10 +3,11 @@ classdef Sensor < handle
     %   Detailed explanation goes here
     
     properties
-
+        
         frameRate
         natNetClient
         frameListener
+        listenerAttached
         frameOfData
         
         positionData;
@@ -43,15 +44,14 @@ classdef Sensor < handle
         % Destructor
         function delete(obj)
             % cleanup
+            %detach Frame Callback
+            obj.detachFrameCallback();
+            
+            %Uninitialize natNetClient    
             if(~isempty(obj.natNetClient))
                 obj.natNetClient.Uninitialize();
                 display('[Sensor] Uninitialize NatNetClient.')
             end
-            if(~isempty(obj.frameListener))
-                delete(obj.frameListener);
-                display('[Sensor] Delete Frame Listener.')
-            end
-            
         end
     end
     methods(Access = private)
@@ -156,9 +156,20 @@ classdef Sensor < handle
             % get the mocap data
             % approach 3 : get data by event handler (no polling)
             % Add NatNet FrameReady event handler
-            obj.frameListener = addlistener(obj.natNetClient,...
-                'OnFrameReady2',@(src,event)frameReadyCallback(obj,src,event));
-            display('[Sensor] FrameReady Listener added.');
+            if(isempty(obj.frameListener))
+                obj.frameListener = addlistener(obj.natNetClient,...
+                    'OnFrameReady2',@(src,event)frameReadyCallback(obj,src,event));
+                display('[Sensor] FrameReady Listener added.');
+            else
+                display('[Sensor] FrameReady Listener was already added before.');
+            end
+        end
+        function detachFrameCallback(obj)
+            if(~isempty(obj.frameListener))
+                delete(obj.frameListener);
+                obj.frameListener = [];
+                display('[Sensor] FrameReady Listener deleted.');
+            end          
         end
         
         % Test : Process data in a NatNet FrameReady Event listener callback
@@ -240,7 +251,7 @@ classdef Sensor < handle
             try
                 if(newFrame)
                     
-                    if(obj.frameOfData.RigidBodies.Length() > 0)
+                    if(obj.frameOfData.nRigidBodies == 7)
                         % RigidBodyData with properties:
                         %
                         %            ID: 1
@@ -265,7 +276,7 @@ classdef Sensor < handle
                         % calculating kappa and L
                         % populate the matrix with information
                         
-                        obj.eulAngles = Sensor.extractAnglesFromBody( obj.frameOfData.RigidBodies(1) );
+                        %obj.eulAngles = Sensor.extractAnglesFromBody( obj.frameOfData.RigidBodies(1) );
                         
                         x_off = obj.frameOfData.RigidBodies(1).x;
                         y_off = obj.frameOfData.RigidBodies(1).y;
@@ -284,7 +295,10 @@ classdef Sensor < handle
                         % k and L of Gripper
                         % Indicate to Arm Controller that measurements are
                         % done
-                        obj.armController2D.sensorMeasurementsDone();
+                        %obj.armController2D.sensorMeasurementsDone();
+                    else
+                        fprintf('Only %i Rigid Bodies, but we need 7!\n',obj.frameOfData.nRigidBodies);
+                        
                     end
                 end
             catch err
