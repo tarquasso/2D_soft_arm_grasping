@@ -30,7 +30,7 @@ classdef ArmController2D < handle
             obj.sensor.start();
         end
         function sensorMeasurementsDone(obj)
-            obj.plannerGrasp.plan();
+            %obj.plannerGrasp.plan();
         end
         % Destructor
         function delete(obj)
