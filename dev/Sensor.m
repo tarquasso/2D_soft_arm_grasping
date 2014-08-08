@@ -41,13 +41,17 @@ classdef Sensor < handle
             % setup callback triggered whenever a new frame is received
             obj.setupFrameCallback()
         end
+        function stop(obj)
+            % setup callback triggered whenever a new frame is received
+            obj.detachFrameCallback()
+        end
         % Destructor
         function delete(obj)
             % cleanup
             %detach Frame Callback
             obj.detachFrameCallback();
             
-            %Uninitialize natNetClient    
+            %Uninitialize natNetClient
             if(~isempty(obj.natNetClient))
                 obj.natNetClient.Uninitialize();
                 display('[Sensor] Uninitialize NatNetClient.')
@@ -169,147 +173,104 @@ classdef Sensor < handle
                 delete(obj.frameListener);
                 obj.frameListener = [];
                 display('[Sensor] FrameReady Listener deleted.');
-            end          
+            end
         end
         
         % Test : Process data in a NatNet FrameReady Event listener callback
         function frameReadyCallback(obj,src,event)
-            persistent countDots;
-            
-            if isempty(countDots)
-                countDots = 1;
-            end
             
             obj.frameOfData = event.data;
-            
-            % Code to display if framedata has been received
-            if(false)
-                fprintf('.');
-                if countDots > 45
-                    fprintf('\n'); % That \n explicitly adds the linefeed
-                    countDots = 1;
-                else
-                    countDots = countDots+1;
-                end
-            end
+            %Sensor.helperDisplayDots(); %for debugging to display dots
             % do some work on that pass...
             obj.extractPositionData();
         end
         
         function extractPositionData(obj)
             
-            persistent lastFrameTime;
-            persistent lastFrameID;
-            persistent arrayIndex;
-            persistent bufferModulo;
+            persistent p_lastFrameTime;
+            persistent p_lastFrameID;
+            persistent p_arrayIndex;
+            persistent p_bufferModulo;
             
             % first time - generate an array and a plot
-            if isempty(lastFrameTime)
+            if isempty(p_lastFrameTime)
                 % initialize statics
-                bufferModulo = 256;
-                arrayIndex = 1;
-                lastFrameTime = obj.frameOfData.fLatency;
-                lastFrameID = obj.frameOfData.iFrame;
+                p_bufferModulo = 256;
+                p_arrayIndex = 1;
+                p_lastFrameTime = obj.frameOfData.fLatency;
+                p_lastFrameID = obj.frameOfData.iFrame;
             end
             
             % calculate the frame increment based on mocap frame's timestamp
             % in general this should be monotonically increasing according
             % To the mocap framerate, however frames are not guaranteed delivery
             % so to be accurate we test and report frame drop or duplication
-            newFrame = true;
-            droppedFrames = false;
-            frameTime = obj.frameOfData.fLatency;
+            l_newFrame = true;
+            l_droppedFrames = false;
+            l_frameTime = obj.frameOfData.fLatency;
             
-            frameID = obj.frameOfData.iFrame;
-            if(frameID ==lastFrameID)
+            l_frameID = obj.frameOfData.iFrame;
+            if(l_frameID ==p_lastFrameID)
                 %debug
                 %fprintf('same id\n');
             end
             
-            calcFrameInc = round( (frameTime - lastFrameTime) * obj.frameRate );
-            %fprintf('%.12f frameTime\n',frameTime);
-            %fprintf('%.12f lastFrameTime\n',lastFrameTime);
+            l_calcFrameInc = round( (l_frameTime - p_lastFrameTime) * obj.frameRate );
+            %fprintf('%.12f l_frameTime\n',l_frameTime);
+            %fprintf('%.12f p_lastFrameTime\n',p_lastFrameTime);
             
             % clamp it to a circular buffer of 255 frames
-            arrayIndex = mod(arrayIndex + calcFrameInc, bufferModulo);
-            if(arrayIndex==0)
-                arrayIndex = 1;
+            p_arrayIndex = mod(p_arrayIndex + l_calcFrameInc, p_bufferModulo);
+            if(p_arrayIndex==0)
+                p_arrayIndex = 1;
             end
-            if(calcFrameInc > 1)
+            if(l_calcFrameInc > 1)
                 % debug
-                %fprintf('\nDropped Frame(s) : %d\n\tLastTime : %.3f\n\tThisTime : %.3f\n', calcFrameInc-1, lastFrameTime, frameTime);
-                droppedFrames = true;
-            elseif(calcFrameInc == 0)
+                %fprintf('\nDropped Frame(s) : %d\n\tLastTime : %.3f\n\tThisTime : %.3f\n', l_calcFrameInc-1, p_lastFrameTime, l_frameTime);
+                l_droppedFrames = true;
+            elseif(l_calcFrameInc == 0)
                 % debug
                 % fprintf('Duplicate Frame\n')
-                newFrame = false;
+                l_newFrame = false;
             end
             
             % debug
-            % fprintf('FrameTime: %0.3f\tFrameID: %d\n',frameTime, frameID);
+            % fprintf('l_frameTime: %0.3f\tFrameID: %d\n',l_frameTime, l_frameID);
             
             try
-                if(newFrame)
-                    
+                if(l_newFrame)
                     if(obj.frameOfData.nRigidBodies == 7)
                         % RigidBodyData with properties:
-                        %
-                        %            ID: 1
-                        %             x: 0.1762
-                        %             y: 0.0186
-                        %             z: -0.0620
-                        %            qx: -1.6575e-04
-                        %            qy: -1.2448e-04
-                        %            qz: 3.9440e-05
-                        %            qw: 1
-                        %      nMarkers: 4
-                        %       Markers: [1x1 NatNetML.Marker[]]
-                        %     MeanError: 7.6300e-06
-                        %       Tracked: 0
-                        
-                        %steps to add:
-                        % read out only as many rigid bodies as there are: 1000
-                        % add method to convert quaternion of each rigid body to an angle
-                        % find relevant angle
-                        % understand how the center of the rigid body is calculated
-                        % find foward and inverse kinematics algorithm to use in
-                        % calculating kappa and L
-                        % populate the matrix with information
-                        
-                        %obj.eulAngles = Sensor.extractAnglesFromBody( obj.frameOfData.RigidBodies(1) );
-                        
-                        x_off = obj.frameOfData.RigidBodies(1).x;
-                        y_off = obj.frameOfData.RigidBodies(1).y;
-                        z_off = obj.frameOfData.RigidBodies(1).z;
-                        
-                        %                 positionData = [frameOfData.RigidBodies(2).x-x_off, -(frameOfData.RigidBodies(2).z-z_off), frameOfData.RigidBodies(2).y-y_off, ...
-                        %                                 frameOfData.RigidBodies(3).x-x_off, -(frameOfData.RigidBodies(3).z-z_off), frameOfData.RigidBodies(3).y-y_off, ...
-                        %                                 frameOfData.RigidBodies(4).x-x_off, -(frameOfData.RigidBodies(4).z-z_off), frameOfData.RigidBodies(4).y-y_off, ...
-                        %                                 frameOfData.RigidBodies(5).x-x_off, -(frameOfData.RigidBodies(5).z-z_off), frameOfData.RigidBodies(5).y-y_off];
-                        obj.positionData = [x_off,y_off,z_off];
-                        obj.positionTime = frameTime * obj.frameRate;
-                        
+                        % ID,x,y,z,qx,qy,qz,qw,nMarkers,Markers,MeanError,Tracked
+                        obj.positionTime = l_frameTime * obj.frameRate;
+                        for s = 1:7
+                            obj.positionData(1,s) = obj.frameOfData.RigidBodies(s).x;
+                            obj.positionData(2,s) = obj.frameOfData.RigidBodies(s).y;
+                            %obj.positionData(3,s) = obj.frameOfData.RigidBodies(s).z;
+                        end 
                         % Update Arm
+                        % obj.arm2D.setSegmentValues(obj.positionData);
                         
                         % Update Grippper
                         % k and L of Gripper
-                        % Indicate to Arm Controller that measurements are
-                        % done
-                        %obj.armController2D.sensorMeasurementsDone();
-                    else
-                        fprintf('Only %i Rigid Bodies, but we need 7!\n',obj.frameOfData.nRigidBodies);
                         
+                        % Tell Arm Controller that measurements are done
+                        % obj.armController2D.sensorMeasurementsDone();
+                    else
+                        error('[Sensor] Only %i Rigid Bodies, but we need 7!\n',obj.frameOfData.nRigidBodies);
                     end
                 end
             catch err
                 display(err);
             end
             
-            lastFrameTime = frameTime;
-            lastFrameID = frameID;
+            p_lastFrameTime = l_frameTime;
+            p_lastFrameID = l_frameID;
             
         end
+
     end
+    
     methods(Static)
         function angles = extractAnglesFromBody( rigidBody )
             q = quaternion( rigidBody.qx, rigidBody.qy, ...
@@ -322,8 +283,20 @@ classdef Sensor < handle
             angleZ = -angles(3) * 180.0 / pi;   % must invert due to 180 flip above
             angles = [angleX,angleY,angleZ];
         end
-        
-        
+        function helperDisplayDots( )
+            persistent countDots;
+            if isempty(countDots)
+                countDots = 1;
+            end
+            % Code to display if framedata has been received
+            fprintf('.');
+            if countDots > 45
+                fprintf('\n'); % That \n explicitly adds the linefeed
+                countDots = 1;
+            else
+                countDots = countDots+1;
+            end
+        end
     end
     
 end
