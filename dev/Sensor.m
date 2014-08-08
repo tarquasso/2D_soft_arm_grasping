@@ -244,9 +244,13 @@ classdef Sensor < handle
                         % ID,x,y,z,qx,qy,qz,qw,nMarkers,Markers,MeanError,Tracked
                         obj.positionTime = l_frameTime * obj.frameRate;
                         for s = 1:7
+                            %TAKE X position
                             obj.positionData(1,s) = obj.frameOfData.RigidBodies(s).x;
+                            %TAKE Y position
                             obj.positionData(2,s) = obj.frameOfData.RigidBodies(s).y;
-                            %obj.positionData(3,s) = obj.frameOfData.RigidBodies(s).z;
+                            %TAKE Z position
+                            obj.positionData(3,s) = obj.frameOfData.RigidBodies(s).z;
+ 
                         end 
                         % Update Arm
                         % obj.arm2D.setSegmentValues(obj.positionData);

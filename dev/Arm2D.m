@@ -85,16 +85,20 @@ classdef Arm2D < handle
         
         function setSegmentValues( obj, segPos)
             %SETSEGMENTVALUES Calculates the segments based on marker positions
-            %   setSegmentValues( segPos )
+            %   setSegmentValues( segPos2D )
             %
-            %   segPos      2xM matrix - center positions of M segments
+            %   segPos2D      2xM matrix - center positions of M segments
            
             % Check #1 - are there enough segments and is the position dimension correct?
             if (size(segPos, 2) ~= obj.dims.S+1)
                 error('[Arm2D] Not the right amount of segment positions parsed in.');
-            elseif (size(segPos, 1) ~= 2)
-                error('[Arm2D] not a 2D position value!');
+            elseif (size(segPos, 1) ~= 3)
+                error('[Arm2D] not a 3D position value!');
             else
+                %Based on the planar orientation of the arm, take the right
+                %position values /todo:ADD THIS FEATURE!
+                segPos2D = segPos([1 3],:); %hardcoded to take x and z value
+                
                 % init thetaMeas and arcLenMeas!
                 obj.thetaMeas(1) = obj.dims.thetaStart;
                 
@@ -102,7 +106,7 @@ classdef Arm2D < handle
                 for s = 1:obj.dims.S
                     % Calculate properties of the current segment
                     [obj.kMeas(s), obj.thetaMeas(s+1)] = Arm2D.singSegIK(...
-                        segPos(1:2,s),obj.thetaMeas(s), segPos(1:2,s+1));
+                        segPos2D(1:2,s),obj.thetaMeas(s), segPos2D(1:2,s+1));
                     obj.arcLenMeas(s) = wrapToPi(...
                         obj.thetaMeas(s+1)-obj.thetaMeas(s)) / obj.kMeas(s);
                     
