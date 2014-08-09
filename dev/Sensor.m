@@ -18,6 +18,7 @@ classdef Sensor < handle
         arm2D
         roundObject
         armController2D          % handle to parent class
+        natNetClientInit
     end
     
     methods(Access = public)
@@ -27,6 +28,8 @@ classdef Sensor < handle
             obj.arm2D = arm2DHandle;
             obj.roundObject = roundObjectHandle;
             obj.armController2D = armController2DHandle;
+            
+            obj.natNetClientInit = false;
             
             % Add NatNet .NET assembly so that Matlab can access its methods
             obj.createNatNetClient();
@@ -39,7 +42,7 @@ classdef Sensor < handle
         end
         function start(obj)
             % setup callback triggered whenever a new frame is received
-            obj.setupFrameCallback()
+            obj.attachFrameCallback()
         end
         function stop(obj)
             % setup callback triggered whenever a new frame is received
@@ -52,15 +55,14 @@ classdef Sensor < handle
             obj.detachFrameCallback();
             
             %Uninitialize natNetClient
-            if(~isempty(obj.natNetClient))
-                obj.natNetClient.Uninitialize();
-                display('[Sensor] Uninitialize NatNetClient.')
-            end
+            obj.disconnectFromOptiTrack();
+            
+            %delete NatNetClient
+            obj.destroyNatNetClient();
         end
     end
     methods(Access = private)
-        function createNatNetClient(obj)
-            
+        function createNatNetClient(obj)           
             % Add NatNet .NET assembly so that Matlab can access its methods, delegates, etc.
             % Note : The NatNetML.DLL assembly depends on NatNet.dll, so make sure they
             % are both in the same folder and/or path if you move them.
@@ -81,27 +83,56 @@ classdef Sensor < handle
             version = obj.natNetClient.NatNetVersion();
             fprintf( '[Sensor] Client Version : %d.%d.%d.%d\n', version(1), version(2), version(3), version(4) );
         end
+        function destroyNatNetClient(obj)
+            if(~isempty(obj.natNetClient))
+                obj.natNetClient.delete();
+                obj.natNetClient = [];
+                display('[Sensor] NatNetClient deleted!')
+            else
+                error('[Sensor] NatNetClient does not exist!');
+            end       
+        end
         
         function connectToOptiTrack(obj)
             % Connect to an OptiTrack server (e.g. Motive)
             display('[Sensor] Connecting to OptiTrack Server (Motive).')
-            hst = java.net.InetAddress.getLocalHost;
-            HostIP = char(hst.getHostAddress);
-            %HostIP = char('128.30.27.47');
-            flg = obj.natNetClient.Initialize(HostIP, HostIP); % Flg = returnCode: 0 = Success
-            if (flg == 0)
-                display('[Sensor] Connection to Server established')
+            if(~isempty(obj.natNetClient)&& obj.natNetClientInit == false)
+                hst = java.net.InetAddress.getLocalHost;
+                HostIP = char(hst.getHostAddress);
+                %HostIP = char('128.30.27.47');
+                flg = obj.natNetClient.Initialize(HostIP, HostIP); % Flg = returnCode: 0 = Success
+                if (flg == 0)
+                    obj.natNetClientInit = true;
+                    display('[Sensor] Connection to Server established')
+                else
+                    error('[Sensor] Connection to Server failed!')
+                end
             else
-                display('[NatNet] Connection to Server failed')
+                error('[Sensor] NatNetClient not created yet!')  
+            end
+        end
+        
+        function disconnectFromOptiTrack(obj)
+            % Connect to an OptiTrack server (e.g. Motive)
+            display('[Sensor] Disconnecting from OptiTrack Server (Motive).')
+            if(~isempty(obj.natNetClient) && obj.natNetClientInit == true)
+                %Uninitialize natNetClient
+                flg = obj.natNetClient.Uninitialize(); % Flg = returnCode: 0 = Success
+                if (flg == 0)
+                    obj.natNetClientInit = false;
+                    display('[Sensor] Succesfully disconnected from NatNetClient.')
+                else
+                    error('[Sensor] Disconnecting from NatNetClient failed!')
+                end
+            else
+                error('[Sensor] Already disconnected from NatNetClient.');
             end
         end
         
         % Print out a description of actively tracked models from Motive
-        function getTrackedDataDescriptions(obj)
-            
+        function getTrackedDataDescriptions(obj) 
             %read data descriptions from nat net client
             dataDescriptions = obj.natNetClient.GetDataDescriptions();
-            
             % print out
             fprintf('[Sensor] Tracking Models : %d\n\n', dataDescriptions.Count);
             for idx = 1 : dataDescriptions.Count
@@ -156,23 +187,34 @@ classdef Sensor < handle
             
         end
         
-        function setupFrameCallback(obj)
+        function attachFrameCallback(obj)
             % get the mocap data
             % approach 3 : get data by event handler (no polling)
             % Add NatNet FrameReady event handler
-            if(isempty(obj.frameListener))
-                obj.frameListener = addlistener(obj.natNetClient,...
-                    'OnFrameReady2',@(src,event)frameReadyCallback(obj,src,event));
-                display('[Sensor] FrameReady Listener added.');
+            if(obj.natNetClientInit)
+                if(isempty(obj.frameListener))
+                    obj.frameListener = addlistener(obj.natNetClient,...
+                        'OnFrameReady2',@(src,event)frameReadyCallback(obj,src,event));
+                    display('[Sensor] FrameReady Listener added.');
+                else
+                    display('[Sensor] FrameReady Listener was already added before.');
+                end
             else
-                display('[Sensor] FrameReady Listener was already added before.');
+                error('[Sensor] NatNet Client is not initialized.');
             end
         end
+        
         function detachFrameCallback(obj)
-            if(~isempty(obj.frameListener))
-                delete(obj.frameListener);
-                obj.frameListener = [];
-                display('[Sensor] FrameReady Listener deleted.');
+            if(obj.natNetClientInit)
+                if(~isempty(obj.frameListener))
+                    delete(obj.frameListener);
+                    obj.frameListener = [];
+                    display('[Sensor] FrameReady Listener deleted.');
+                else
+                    display('[Sensor] FrameReady Listener already deleted.');
+                end
+            else
+                error('[Sensor] NatNet Client is not initialized, can not deattach.');
             end
         end
         
@@ -250,8 +292,8 @@ classdef Sensor < handle
                             obj.positionData(2,s) = obj.frameOfData.RigidBodies(s).y;
                             %TAKE Z position
                             obj.positionData(3,s) = obj.frameOfData.RigidBodies(s).z;
- 
-                        end 
+                            
+                        end
                         % Update Arm
                         % obj.arm2D.setSegmentValues(obj.positionData);
                         
@@ -272,7 +314,7 @@ classdef Sensor < handle
             p_lastFrameID = l_frameID;
             
         end
-
+        
     end
     
     methods(Static)

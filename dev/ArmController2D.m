@@ -29,6 +29,10 @@ classdef ArmController2D < handle
             % attach the frame callback to start the sensor
             obj.sensor.start();
         end
+        function stop(obj)
+            % attach the frame callback to start the sensor
+            obj.sensor.stop();
+        end
         function sensorMeasurementsDone(obj)
             %obj.plannerGrasp.plan();
         end
