@@ -26,7 +26,7 @@ classdef Arm2D < handle
             %obj.dims.spos = [263.8; 152.7] .* unitsratio('m','mm');
             
             obj.dims.lengths = repmat(2.37,1,obj.dims.S) .* ...
-                unitsratio('m','inch');
+                unitsratio('mm','inch');
             
             %Create gripper2D before curvature controller
             obj.gripper2D = Gripper2D;
@@ -87,7 +87,7 @@ classdef Arm2D < handle
             %SETSEGMENTVALUES Calculates the segments based on marker positions
             %   setSegmentValues( segPos2D )
             %
-            %   segPos2D      2xM matrix - center positions of M segments
+            %   segPos2D      3xM matrix - center positions of M segments
            
             % Check #1 - are there enough segments and is the position dimension correct?
             if (size(segPos, 2) ~= obj.dims.S+1)
