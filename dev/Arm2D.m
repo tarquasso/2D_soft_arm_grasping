@@ -25,8 +25,7 @@ classdef Arm2D < handle
             obj.dims.thetaStart = pi/2;   % is the current/measured initial orientation of the first segment
             %obj.dims.spos = [263.8; 152.7] .* unitsratio('m','mm');
             
-            obj.dims.lengths = repmat(2.37,1,obj.dims.S) .* ...
-                unitsratio('mm','inch');
+            obj.dims.lengths = repmat(0.06277,1,obj.dims.S); %[m]
             
             %Create gripper2D before curvature controller
             obj.gripper2D = Gripper2D;
@@ -97,8 +96,7 @@ classdef Arm2D < handle
             else
                 %Based on the planar orientation of the arm, take the right
                 %position values /todo:ADD THIS FEATURE!
-                segPos2D = segPos([1 3],:); %hardcoded to take x and z value
-                
+                segPos2D = segPos([3 1],:); %hardcoded to take x and z value
                 % init thetaMeas and arcLenMeas!
                 obj.thetaMeas(1) = obj.dims.thetaStart;
                 
