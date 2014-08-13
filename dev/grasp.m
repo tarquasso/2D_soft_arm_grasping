@@ -1,7 +1,7 @@
 function [] = grasp( )
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize arm %%%%%%%%%%%%%%%%%%%%%%%%%
-    k_init = 1*randn(6,1);
+    k_init = 0.1*randn(6,1);
     ARM = Arm2D();
     ARM.setMeasuredLengths(2.37*0.0254*ones(6,1));
     ARM.setMeasuredCurvatures(k_init);
@@ -47,7 +47,7 @@ function [] = grasp( )
     t.StartFcn = @(myTimerObj, thisEvent)StartFunction;
     t.ExecutionMode = 'fixedRate';
     start(t)
-    pause(20) % <----- Total experiment time
+    pause(30) % <----- Total experiment time
     stop(t)
     delete(t)
     
