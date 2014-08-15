@@ -35,6 +35,16 @@ classdef ArmController2D < handle
         end
         function sensorMeasurementsDone(obj)
             obj.plannerGrasp.plan();
+            
+            %PLOT CURRENT ARM AND OBJECT
+%             if isempty(l_armPlotHandle)
+%                 
+%             else
+%                delete(l_armPlotHandle);
+%             end
+%             
+%             l_armPlotHandle = obj.arm2D.plotArmToHandle();
+            
         end
         % Destructor
         function delete(obj)

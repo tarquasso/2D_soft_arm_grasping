@@ -2,9 +2,11 @@ classdef Gripper2D <handle
     
     properties
         dims                     % gripper dimensions
+        segPos2D
     end
     
     properties(SetAccess=private,GetAccess=public)
+        
         arcLenMeas;
         kMeas;
         kTarget;
@@ -13,10 +15,15 @@ classdef Gripper2D <handle
     methods
         %Constructor
         function obj = Gripper2D()
+
             obj.dims = struct();
             obj.dims.S = 1;      % is the total number of arm segments
             obj.dims.kMin = -60;     % minimum allowable curvature
             obj.dims.kMax = 60;      % maximum allowable curvature
+            
+            %Initialize with some values
+            obj.arcLenMeas = 0.113; %arc length in meters
+            obj.kMeas = 0.01;
         end
         %Destructor
         function delete(obj)

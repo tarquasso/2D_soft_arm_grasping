@@ -14,16 +14,16 @@ classdef RoundObject < handle
         %Constructor
         function obj = RoundObject()
             obj.placed = 0;
+            obj.r = 0.0324; %Radius initialized by construction [m]
         end
         %Destructor
         function delete(obj)
             
         end
         %Set measured state of the object
-        function setMeasuredState(obj, val_x, val_y, val_r)
+        function setMeasuredState(obj, val_x, val_y)
             obj.x = val_x;
             obj.y = val_y;
-            obj.r = val_r;
         end
         %Plot the object and return a handle to the plot
         function h = plotObjectToHandle(obj)

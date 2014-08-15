@@ -10,7 +10,6 @@ classdef Sensor < handle
         listenerAttached
         frameOfData
         
-        positionData;
         positionTime;
         eulAngles;
     end
@@ -19,6 +18,7 @@ classdef Sensor < handle
         roundObject
         armController2D          % handle to parent class
         natNetClientInit
+        totalNumRigidBodies
     end
     
     methods(Access = public)
@@ -28,7 +28,7 @@ classdef Sensor < handle
             obj.arm2D = arm2DHandle;
             obj.roundObject = roundObjectHandle;
             obj.armController2D = armController2DHandle;
-            
+            obj.totalNumRigidBodies = 9;
             obj.natNetClientInit = false;
             
             % Add NatNet .NET assembly so that Matlab can access its methods
@@ -281,27 +281,43 @@ classdef Sensor < handle
             
             try
                 if(l_newFrame)
-                    if(obj.frameOfData.nRigidBodies == 7)
+                    if(obj.frameOfData.nRigidBodies == obj.totalNumRigidBodies)
                         % RigidBodyData with properties:
                         % ID,x,y,z,qx,qy,qz,qw,nMarkers,Markers,MeanError,Tracked
                         obj.positionTime = l_frameTime * obj.frameRate;
-                        for s = 1:7
+                        obj.armController2D.plannerGrasp.framePeriod = 1/(obj.frameRate);
+                        
+                        i = 1;
+                        j =1;
+                        % Extract info for arm and gripper
+                        for s = 1:obj.totalNumRigidBodies
+                            if (s >= 1 && s <= obj.arm2D.dims.S + 1)
                             %TAKE X position
-                            obj.positionData(1,s) = obj.frameOfData.RigidBodies(s).x;
+                            obj.arm2D.segPos2D(1,i) = obj.frameOfData.RigidBodies(s).z;
                             %TAKE Y position
-                            obj.positionData(2,s) = obj.frameOfData.RigidBodies(s).y;
-                            %TAKE Z position
-                            obj.positionData(3,s) = obj.frameOfData.RigidBodies(s).z;
-                            
+                            obj.arm2D.segPos2D(2,i) = obj.frameOfData.RigidBodies(s).x;
+                            i = i+1;
+                            end
+                            if ( s >= obj.arm2D.dims.S +1 &&  s <= obj.arm2D.dims.S +1+obj.arm2D.gripper2D.dims.S)
+                             %TAKE X position
+                            obj.arm2D.gripper2D.segPos2D(1,j) = obj.frameOfData.RigidBodies(s).z;
+                            %TAKE Y position
+                            obj.arm2D.gripper2D.segPos2D(2,j) = obj.frameOfData.RigidBodies(s).x;
+
+                            j = j+1;
+                            end        
+                            if (s == obj.arm2D.dims.S+1+obj.arm2D.gripper2D.dims.S+1)
+                            obj.roundObject.setMeasuredState(...
+                                obj.frameOfData.RigidBodies(s).z,...
+                                obj.frameOfData.RigidBodies(s).x);
+                            end
                         end
-                        % Update Arm
-                        % obj.arm2D.setSegmentValues(obj.positionData);
                         
-                        % Update Grippper
-                        % k and L of Gripper
-                        
+                        % Update Arm and Gripper Values
+                        obj.arm2D.calculateSegmentValues();
+                   
                         % Tell Arm Controller that measurements are done
-                        % obj.armController2D.sensorMeasurementsDone();
+                        obj.armController2D.sensorMeasurementsDone();
                     else
                         error('[Sensor] Only %i Rigid Bodies, but we need 7!\n',obj.frameOfData.nRigidBodies);
                     end

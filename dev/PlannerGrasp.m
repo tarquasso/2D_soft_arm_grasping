@@ -3,6 +3,7 @@ classdef PlannerGrasp < handle
     properties
         arm2D;
         roundObject;
+        framePeriod;
     end
     
     properties(SetAccess=private,GetAccess=public)
@@ -33,7 +34,7 @@ classdef PlannerGrasp < handle
         graspTime;
         planTime;
         
-        framePeriod;
+
         vMax;
         aMax; 
     end
@@ -129,8 +130,8 @@ classdef PlannerGrasp < handle
         function alignArmTip(obj)
             
             if( obj.initialTipPoseComputed == 0 ) % compute initial tip pose
-                l_k = obj.arm2D.kMeasured;
-                l_L = obj.arm2D.L;
+                l_k = obj.arm2D.kMeas;
+                l_L = obj.arm2D.arcLenMeas;
                 l_i = obj.arm2D.dims.S;
                 
                 [obj.initialTipPose(1), obj.initialTipPose(2), obj.initialTipPose(3)] = obj.arm2D.recursiveForwardKinematics(l_k, l_i, l_L(l_i));
@@ -142,18 +143,18 @@ classdef PlannerGrasp < handle
                 l_D = sqrt(obj.roundObject.x^2 + obj.roundObject.y^2);        % distance from ground to object center
                 l_angle = atan2(obj.roundObject.y, obj.roundObject.x)-pi/2;   % angle between ground and object center
                 l_perpOffset = 2*obj.roundObject.r;                           % perpendicular offset from object
-                l_parallelOffset = 1.0*obj.arm2D.gripper2D.L;                     % parallel offset from object
+                l_parallelOffset = 1.0*obj.arm2D.gripper2D.arcLenMeas;                     % parallel offset from object
                 l_parallelAdvment = 0;                                        % parallel advancement amount
                 
                 obj.alignmentTipPose(1) = l_perpOffset*cos(l_angle) - (l_D - l_parallelOffset - obj.roundObject.r)*sin(l_angle) - l_parallelAdvment*sin(l_angle);
                 obj.alignmentTipPose(2) = (l_D - l_parallelOffset - obj.roundObject.r)*cos(l_angle) + l_parallelAdvment*cos(l_angle) + l_perpOffset*sin(l_angle);
-                obj.alignmentTipPose(3) = l_angle + obj.arm2D.dims.theta0;
+                obj.alignmentTipPose(3) = l_angle + obj.arm2D.dims.thetaStart;
                 plot(obj.alignmentTipPose(1), obj.alignmentTipPose(2), '.k', 'MarkerSize', 30);
                 
-                l_parallelAdvment = 1.0*obj.arm2D.gripper2D.L;               % parallel advancement amount
+                l_parallelAdvment = 1.0*obj.arm2D.gripper2D.arcLenMeas;               % parallel advancement amount
                 obj.advancedTipPose(1) = l_perpOffset*cos(l_angle) - (l_D - l_parallelOffset - obj.roundObject.r)*sin(l_angle) - l_parallelAdvment*sin(l_angle);
                 obj.advancedTipPose(2) = (l_D - l_parallelOffset - obj.roundObject.r)*cos(l_angle) + l_parallelAdvment*cos(l_angle) + l_perpOffset*sin(l_angle);
-                obj.advancedTipPose(3) = l_angle + obj.arm2D.dims.theta0;
+                obj.advancedTipPose(3) = l_angle + obj.arm2D.dims.thetaStart;
                 plot(obj.advancedTipPose(1), obj.advancedTipPose(2), '.k', 'MarkerSize', 30);
                 obj.alignmentTipPoseComputed = 1;
             end
@@ -166,8 +167,8 @@ classdef PlannerGrasp < handle
             end
             
             %%%%%%%%%%%%%%%%% determine end effector pose %%%%%%%%%%%%%%%%%
-            l_k = obj.arm2D.kMeasured;
-            l_L = obj.arm2D.L;
+            l_k = obj.arm2D.kMeas;
+            l_L = obj.arm2D.arcLenMeas;
             l_i = obj.arm2D.dims.S;
             [l_measuredX, l_measuredY, l_measuredTheta] = obj.arm2D.recursiveForwardKinematics(l_k, l_i, l_L(l_i));
             
@@ -187,10 +188,15 @@ classdef PlannerGrasp < handle
                 l_yTarget = obj.linInterpolate( l_positionDelta, obj.alignmentTipTransitDistance, obj.initialTipPose(2), obj.alignmentTipPose(2));
                 l_thetaTarget = obj.linInterpolate( l_positionDelta, obj.alignmentTipTransitDistance, obj.initialTipPose(3), obj.alignmentTipPose(3));
                 plot(l_xTarget, l_yTarget, 'og', 'MarkerSize', 10);
-                 
-                l_kGuess = obj.arm2D.kTarget;
+                
+                if(isempty(obj.arm2D.kTarget))
+                    l_kGuess = obj.arm2D.kMeas;
+                else
+                    l_kGuess = obj.arm2D.kTarget;
+                end
+                
                 [l_kTarget] = obj.arm2D.inverseKinematics(l_xTarget, l_yTarget, l_thetaTarget, l_kGuess);
-                obj.arm2D.setTargetCurvatures(l_kTarget);
+                obj.arm2D.setTargetCurvatures(l_kTarget');
             end
         end
         %Determine and drive arm tip to an advanced pose alongside object
@@ -204,8 +210,8 @@ classdef PlannerGrasp < handle
             end
             
             %%%%%%%%%%%%%%%%% determine end effector pose %%%%%%%%%%%%%%%%%
-            l_k = obj.arm2D.kMeasured;
-            l_L = obj.arm2D.L;
+            l_k = obj.arm2D.kMeas;
+            l_L = obj.arm2D.arcLenMeas;
             l_i = obj.arm2D.dims.S;
             [l_measuredX, l_measuredY, l_measuredTheta] = obj.arm2D.recursiveForwardKinematics(l_k, l_i, l_L(l_i));
             

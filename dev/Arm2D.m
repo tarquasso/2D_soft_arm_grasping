@@ -2,13 +2,15 @@ classdef Arm2D < handle
     
     properties
         dims                     % Arm dimensions
-        gripper2D;               % Gripper2D
+        numOfRigidBodies         % Number of Rigid Bodies
+        gripper2D               % Gripper2D
         curvatureController      % curvature controller
+        segPos2D
     end
     
     properties(SetAccess=private,GetAccess=public)
         arcLenMeas               % is the current/measured length vector <--- MEASURE FROM MOCAP INITIAL FRAME
-        thetaMeas                  % angle vector describing rotation of each segment
+        thetaMeas                % angle vector describing rotation of each segment
         kMeas                    % measured arc curvatures
         kTarget                  % target arc curvatures
         
@@ -27,16 +29,18 @@ classdef Arm2D < handle
             
             obj.dims.lengths = repmat(0.06277,1,obj.dims.S); %[m]
             
+
             %Create gripper2D before curvature controller
             obj.gripper2D = Gripper2D;
+            obj.numOfRigidBodies = obj.dims.S + obj.gripper2D.dims.S + 1; % plus one is accounting for the base
             %Create a curvature controller
-            %obj.curvatureController = CurvatureController;
+            obj.curvatureController = CurvatureController;
             
         end
         %Destructor
         function delete(obj)
             obj.gripper2D.delete();
-            %obj.curvatureController.delete();
+            obj.curvatureController.delete();
         end
         %Set Target Curvatures of the 2D arm
         function setTargetCurvatures(obj, val)
@@ -53,8 +57,8 @@ classdef Arm2D < handle
                 
                 if( strcmp(above_max, 'false') )
                     obj.kTarget = val;
-                    %obj.curvatureController.sendCurvatureErrors(...
-                    %    obj.kTarget', obj.kMeas);
+                    obj.curvatureController.sendCurvatureErrors(...
+                       [obj.kTarget]', [obj.kMeas])
                 else
                     error('An element of k exceeds allowable limit')
                 end
@@ -82,21 +86,15 @@ classdef Arm2D < handle
 %             end
 %         end
         
-        function setSegmentValues( obj, segPos)
+        function calculateSegmentValues( obj)
             %SETSEGMENTVALUES Calculates the segments based on marker positions
             %   setSegmentValues( segPos2D )
             %
             %   segPos2D      3xM matrix - center positions of M segments
            
             % Check #1 - are there enough segments and is the position dimension correct?
-            if (size(segPos, 2) ~= obj.dims.S+1)
-                error('[Arm2D] Not the right amount of segment positions parsed in.');
-            elseif (size(segPos, 1) ~= 3)
-                error('[Arm2D] not a 3D position value!');
-            else
-                %Based on the planar orientation of the arm, take the right
-                %position values /todo:ADD THIS FEATURE!
-                segPos2D = segPos([3 1],:); %hardcoded to take x and z value
+          
+
                 % init thetaMeas and arcLenMeas!
                 obj.thetaMeas(1) = obj.dims.thetaStart;
                 
@@ -104,7 +102,7 @@ classdef Arm2D < handle
                 for s = 1:obj.dims.S
                     % Calculate properties of the current segment
                     [obj.kMeas(s), obj.thetaMeas(s+1)] = Arm2D.singSegIK(...
-                        segPos2D(1:2,s),obj.thetaMeas(s), segPos2D(1:2,s+1));
+                        obj.segPos2D(1:2,s),obj.thetaMeas(s), obj.segPos2D(1:2,s+1));
                     obj.arcLenMeas(s) = wrapToPi(...
                         obj.thetaMeas(s+1)-obj.thetaMeas(s)) / obj.kMeas(s);
                     
@@ -115,7 +113,12 @@ classdef Arm2D < handle
                         error('bad arclength for Segment %i: lengt: %f',s,l_lengthDiff);
                     end
                 end
-            end
+                % HERE ADD THE GRIPPER ANALYSIS FOR s =
+                % (obj.dims.S+1):(obj.dims.S+1+obj.gripper2D.dims.S)
+                % FOR NOW HARDCODED /todo
+                obj.gripper2D.setMeasuredCurvatures(0.01); 
+                obj.gripper2D.setMeasuredLengths(0.113); %arc length in meters
+            
             
         end
         
@@ -128,10 +131,10 @@ classdef Arm2D < handle
             % s - is the length of interest along segment i
             
             l_N = obj.dims.S + 1; % number of arm links plus the gripper
-            l_arcLen = [obj.arcLenMeas; obj.gripper2D.arcLenMeas];
-            l_valSize = size(k);
+            l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
+            l_valSize = length(k);
             
-            if( i > l_valSize(1) )
+            if( i > l_valSize )
                 error('The size of k does not match the segment of interest.');
             end
             
