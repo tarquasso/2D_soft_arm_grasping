@@ -7,10 +7,12 @@ classdef CurvatureController < handle
     
     properties
         serialPort
+        vectorLength
     end
     
     methods
-        function obj = CurvatureController(obj)
+        function obj = CurvatureController(vecLength)
+            obj.vectorLength = vecLength;
             % Establish the serial port communication
             display('[CurvatureController] Opening Serial Port on COM1')
             obj.serialPort = serial('COM1');
@@ -25,6 +27,17 @@ classdef CurvatureController < handle
             %   obj         Serial Port Object - curvature controller object
             %   target      1xS vector - target curvatures
             %   measured    1xS vector - measured curvatures
+            
+            %error checking
+            l_targetSize = size(target);
+            if( l_targetSize(2) ~= obj.vectorLength && l_targetSize(1) == 1)
+                error('sendCurvatureErrors function input target has wrong size');
+            end
+            
+            l_measuredSize = size(measured);
+            if( l_measuredSize(2) ~= obj.vectorLength && l_measuredSize(1) == 1)
+                error('sendCurvatureErrors function input measured has wrong size');
+            end
             
             % The multiplier c will give a curvature difference of 40 the maximum value
             % of error at +127. Curvature of 40 m^-1 corresponds to a radius of
@@ -41,6 +54,7 @@ classdef CurvatureController < handle
             % the position. The (measured-target) error is multiplied by
             % (-1).^(K-1) because of the way the motors expect the sign of
             % errors to be supplied.
+            
             K = arrayfun(@(t,m) CurvatureController.select_curvature(t,m), ...
                 target, measured);
             E = c * (target-measured);
@@ -66,6 +80,7 @@ classdef CurvatureController < handle
             % fprintf('\nerr: ');
             % fprintf('%9d', int8(E));
             % fprintf('\n\n')
+    
         end
         
         function delete(obj)

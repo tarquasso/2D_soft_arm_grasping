@@ -308,8 +308,8 @@ classdef Sensor < handle
                             end        
                             if (s == obj.arm2D.dims.S+1+obj.arm2D.gripper2D.dims.S+1)
                             obj.roundObject.setMeasuredState(...
-                                obj.frameOfData.RigidBodies(s).z,...
-                                obj.frameOfData.RigidBodies(s).x);
+                                obj.frameOfData.RigidBodies(s).z-obj.frameOfData.RigidBodies(1).z ,...
+                                obj.frameOfData.RigidBodies(s).x-obj.frameOfData.RigidBodies(1).x);
                             end
                         end
                         

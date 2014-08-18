@@ -10,6 +10,9 @@ classdef ArmController2D < handle
         plannerGrasp;
         simulationTime;
         shapeHistory;
+        
+        armPlotHandle;
+        objectPlotHandle;
     end
     
     methods(Access = public)
@@ -36,15 +39,16 @@ classdef ArmController2D < handle
         function sensorMeasurementsDone(obj)
             obj.plannerGrasp.plan();
             
-            %PLOT CURRENT ARM AND OBJECT
-%             if isempty(l_armPlotHandle)
-%                 
-%             else
-%                delete(l_armPlotHandle);
-%             end
-%             
-%             l_armPlotHandle = obj.arm2D.plotArmToHandle();
-            
+            if( isempty(obj.armPlotHandle) )
+                obj.armPlotHandle = obj.arm2D.plotArmToHandle(obj.arm2D.kTarget);
+                obj.objectPlotHandle = obj.roundObject.plotObjectToHandle();
+            else
+                delete(obj.armPlotHandle);
+                obj.armPlotHandle = obj.arm2D.plotArmToHandle(obj.arm2D.kTarget);
+                
+                delete(obj.objectPlotHandle);
+                obj.objectPlotHandle = obj.roundObject.plotObjectToHandle();       
+            end
         end
         % Destructor
         function delete(obj)

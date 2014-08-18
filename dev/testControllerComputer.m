@@ -20,7 +20,7 @@ plot([xMin,xMax],[yMax,yMax], '-k');
 ac = ArmController2D;
 ac.start;
 
-pause(20.0)
+pause(expTime)
 
 ac.stop;
 

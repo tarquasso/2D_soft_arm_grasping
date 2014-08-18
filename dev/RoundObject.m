@@ -14,7 +14,7 @@ classdef RoundObject < handle
         %Constructor
         function obj = RoundObject()
             obj.placed = 0;
-            obj.r = 0.0324; %Radius initialized by construction [m]
+            obj.r = 0.0324/2; %Radius initialized by construction [m]
         end
         %Destructor
         function delete(obj)

@@ -1,9 +1,9 @@
 function [] = grasp( )
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize arm %%%%%%%%%%%%%%%%%%%%%%%%%
-    k_init = 0.1*randn(6,1);
+    k_init = 0.1*randn(1, 6);
     ARM = Arm2D();
-    ARM.setMeasuredLengths(2.37*0.0254*ones(6,1));
+    ARM.setMeasuredLengths(2.47*0.0254*ones(1, 6));
     ARM.setMeasuredCurvatures(k_init);
     ARM.setTargetCurvatures(k_init);
     ARM.gripper2D.setMeasuredLengths(4.0*0.0254);
@@ -20,7 +20,7 @@ function [] = grasp( )
     obj_x = (xMax-xMin).*rand(1)+xMin;          % x coordinate of the center of the object  <--- MEASURE FROM MOCAP INITIAL FRAME
     obj_y = (yMax-yMin).*rand(1)+yMin;          % y coordinate of the center of the object  <--- MEASURE FROM MOCAP INITIAL FRAME
     obj_r = 0.025;         % r is the radius of the circle             <--- MEASURE FROM MOCAP INITIAL FRAME
-    OBJECT.setMeasuredState(obj_x, obj_y, obj_r);
+    OBJECT.setMeasuredState(obj_x, obj_y);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Planner %%%%%%%%%%%%%%%%%%%%%%%
     framePeriod = 0.1;

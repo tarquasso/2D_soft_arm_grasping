@@ -34,7 +34,8 @@ classdef Arm2D < handle
             obj.gripper2D = Gripper2D;
             obj.numOfRigidBodies = obj.dims.S + obj.gripper2D.dims.S + 1; % plus one is accounting for the base
             %Create a curvature controller
-            obj.curvatureController = CurvatureController;
+            l_vectorLength = obj.dims.S+obj.gripper2D.dims.S;
+            obj.curvatureController = CurvatureController(l_vectorLength);
             
         end
         %Destructor
@@ -45,7 +46,7 @@ classdef Arm2D < handle
         %Set Target Curvatures of the 2D arm
         function setTargetCurvatures(obj, val)
             l_valSize = size(val);
-            if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
+            if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 
                 above_max = 'false';
                 
@@ -57,8 +58,6 @@ classdef Arm2D < handle
                 
                 if( strcmp(above_max, 'false') )
                     obj.kTarget = val;
-                    obj.curvatureController.sendCurvatureErrors(...
-                       [obj.kTarget]', [obj.kMeas])
                 else
                     error('An element of k exceeds allowable limit')
                 end
@@ -67,24 +66,30 @@ classdef Arm2D < handle
                 error('The size of k does not match the arm.')
             end
         end
-%         %Set Measured Curvatures of the 2D arm
-%         function setMeasuredCurvatures(obj, val)
-%             l_valSize = size(val);
-%             if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
-%                 obj.kMeas = val;
-%             else
-%                 error('The size of measured k does not match the arm.');
-%             end
-%         end
-%         %Set Measured Lengths of the 2D arm
-%         function setMeasuredLengths(obj, val)
-%             l_valSize = size(val);
-%             if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
-%                 obj.arcLenMeas = val;
-%             else
-%                 error('The size of measured arcLenMeas does not match the arm.');
-%             end
-%         end
+        
+        function actuate(obj)
+            obj.curvatureController.sendCurvatureErrors( [obj.kTarget,obj.gripper2D.kTarget] ,...
+                [obj.kMeas,obj.gripper2D.kMeas] );
+
+        end
+        %Set Measured Curvatures of the 2D arm
+        function setMeasuredCurvatures(obj, val)
+            l_valSize = size(val);
+            if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
+                obj.kMeas = val;
+            else
+                error('The size of measured k does not match the arm.');
+            end
+        end
+        %Set Measured Lengths of the 2D arm
+        function setMeasuredLengths(obj, val)
+            l_valSize = size(val);
+            if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
+                obj.arcLenMeas = val;
+            else
+                error('The size of measured arcLenMeas does not match the arm.');
+            end
+        end
         
         function calculateSegmentValues( obj)
             %SETSEGMENTVALUES Calculates the segments based on marker positions
@@ -163,8 +168,8 @@ classdef Arm2D < handle
             b = [];
             Aeq = [];
             beq = [];
-            lb = obj.dims.kMin*ones(6,1);
-            ub = obj.dims.kMax*ones(6,1);
+            lb = obj.dims.kMin*ones(1,6);
+            ub = obj.dims.kMax*ones(1,6);
             
             l_optTime = tic;
             options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
@@ -189,11 +194,11 @@ classdef Arm2D < handle
             end
         end
         %Plot the measured state of the 2D
-        function h = plotArmToHandle(obj)
+        function h = plotArmToHandle(obj, k)
             
             l_N = obj.dims.S + 1;
-            l_arcLen = [obj.arcLenMeas; obj.gripper2D.arcLenMeas];
-            l_k = [obj.kMeas; obj.gripper2D.kMeas];
+            l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
+            l_k = [k, obj.gripper2D.kMeas];
             
             M = 20;
             total = 1;
