@@ -64,8 +64,8 @@ classdef PlannerGrasp < handle
             obj.advancementPathProfileComputed = 0;
             obj.graspTime = 3.0;
             
-            obj.vMax = 0.015;
-            obj.aMax = 0.0025;
+            obj.vMax = 0.005;
+            obj.aMax = 0.001;
             
             obj.plannerFree = 'true';
 
@@ -85,9 +85,9 @@ classdef PlannerGrasp < handle
                     case 2 % tip is NOT aligned
                         obj.alignArmTip();
                     case 3 % tip is NOT advanced
-                        %obj.advanceArmTip();
+                        obj.advanceArmTip();
                     case 4 % object is NOT grasped
-                        %obj.graspObject();
+                        obj.graspObject();
                     otherwise
                         display('plan executed')
                 end
@@ -103,6 +103,7 @@ classdef PlannerGrasp < handle
             % Target = Measured for arm and gripper
             obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas);
             obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas);
+            obj.arm2D.actuate(); %set target to be equal to be the measured value
             
             l_currentObjPosition = [obj.roundObject.x; obj.roundObject.y];
             
@@ -147,7 +148,7 @@ classdef PlannerGrasp < handle
                 l_D = sqrt(obj.roundObject.x^2 + obj.roundObject.y^2);        % distance from ground to object center
                 l_angle = atan2(obj.roundObject.y, obj.roundObject.x)-pi/2;   % angle between ground and object center
                 l_perpOffset = 2*obj.roundObject.r;                           % perpendicular offset from object
-                l_parallelOffset = 1.0*obj.arm2D.gripper2D.arcLenMeas;                     % parallel offset from object
+                l_parallelOffset = 0.5*obj.arm2D.gripper2D.arcLenMeas;                     % parallel offset from object
                 l_parallelAdvment = 0;                                        % parallel advancement amount
                 
                 obj.alignmentTipPose(1) = l_perpOffset*cos(l_angle) - (l_D - l_parallelOffset - obj.roundObject.r)*sin(l_angle) - l_parallelAdvment*sin(l_angle);
@@ -155,7 +156,7 @@ classdef PlannerGrasp < handle
                 obj.alignmentTipPose(3) = l_angle + obj.arm2D.dims.thetaStart;
                 plot(obj.alignmentTipPose(1), obj.alignmentTipPose(2), '.k', 'MarkerSize', 30);
                 
-                l_parallelAdvment = 1.0*obj.arm2D.gripper2D.arcLenMeas;               % parallel advancement amount
+                l_parallelAdvment = 0.25*obj.arm2D.gripper2D.arcLenMeas;               % parallel advancement amount
                 obj.advancedTipPose(1) = l_perpOffset*cos(l_angle) - (l_D - l_parallelOffset - obj.roundObject.r)*sin(l_angle) - l_parallelAdvment*sin(l_angle);
                 obj.advancedTipPose(2) = (l_D - l_parallelOffset - obj.roundObject.r)*cos(l_angle) + l_parallelAdvment*cos(l_angle) + l_perpOffset*sin(l_angle);
                 obj.advancedTipPose(3) = l_angle + obj.arm2D.dims.thetaStart;
@@ -177,8 +178,8 @@ classdef PlannerGrasp < handle
             [l_measuredX, l_measuredY, l_measuredTheta] = obj.arm2D.recursiveForwardKinematics(l_k, l_i, l_L(l_i));
             
             %%%%%%%%%%%%%%%%% if the tip pose is aligned %%%%%%%%%%%%%%%%%%
-            if( norm( [l_measuredX; l_measuredY] - [obj.alignmentTipPose(1); obj.alignmentTipPose(2)],2 ) <= 0.01 ...
-                    && norm( l_measuredTheta - obj.alignmentTipPose(3), 2) <= 0.1 )
+            if( norm( [l_measuredX; l_measuredY] - [obj.alignmentTipPose(1); obj.alignmentTipPose(2)],2 ) <= 0.02 ...
+                    && norm( l_measuredTheta - obj.alignmentTipPose(3), 2) <= 7.5*(180/3.14159) )
                 obj.state = 3; %then move to next planning state
                 display('Arm is aligned');
                 obj.planTime = tic; % get current time
@@ -201,8 +202,8 @@ classdef PlannerGrasp < handle
                 
                 [l_kTarget] = obj.arm2D.inverseKinematics(l_xTarget, l_yTarget, l_thetaTarget, l_kGuess);
                 obj.arm2D.setTargetCurvatures(l_kTarget);
-                %obj.arm2D.gripper2D.setTargetCurvatures(0);
-                %obj.arm2D.actuate();
+                obj.arm2D.gripper2D.setTargetCurvatures(0);
+                obj.arm2D.actuate();
             end
         end
         %Determine and drive arm tip to an advanced pose alongside object
@@ -242,32 +243,33 @@ classdef PlannerGrasp < handle
                 [l_kTarget] = obj.arm2D.inverseKinematics(l_xTarget, l_yTarget, l_thetaTarget, l_kGuess);
                 obj.arm2D.setTargetCurvatures(l_kTarget);
                 obj.arm2D.gripper2D.setTargetCurvatures(0);
-                %obj.arm2D.actuate();
+                obj.arm2D.actuate();
             end
         end
         %Actuate the gripper to grasp object
         function graspObject(obj)
             %%%%%%%%%%%%%%%% is gripper at grasp curvature? %%%%%%%%%%%%%%%
-            l_k = obj.arm2D.gripper2D.kMeasured;
+            obj.arm2D.gripper2D.setTargetCurvatures( obj.arm2D.gripper2D.dims.kMax );
+            obj.arm2D.actuate();
             
-            %%%%%%%%%%%%%%%%% if it is at grasp curvature %%%%%%%%%%%%%%%%%
-            if( norm( l_k - obj.graspCurvature, 2 ) <= 1 )
-                obj.state = 5; %then move to next planning state
-                display('Gripper has grasped');
-                obj.planTime = tic; % get current time
-                
-                %%%%%%%%%%%% otherwise advance gripper curvature %%%%%%%%%%%%%%
-            else
-                if( toc(obj.planTime) <= obj.graspTime )
-                    l_kInit = 0; % <---- Unactauted gripper curvature
-                    l_kTarget = obj.linInterpolate(toc(obj.planTime), obj.graspTime, l_kInit, obj.graspCurvature);
-                    obj.arm2D.gripper2D.setTargetCurvatures(l_kTarget);
-                    %obj.arm2D.actuate();
-                else
-                    obj.arm2D.gripper2D.setTargetCurvatures( obj.graspCurvature );
-                    %obj.arm2D.actuate();
-                end
-            end
+%             %%%%%%%%%%%%%%%%% if it is at grasp curvature %%%%%%%%%%%%%%%%%
+%             if( norm( l_k - obj.graspCurvature, 2 ) <= 1 )
+%                 obj.state = 5; %then move to next planning state
+%                 display('Gripper has grasped');
+%                 obj.planTime = tic; % get current time
+%                 
+%                 %%%%%%%%%%%% otherwise advance gripper curvature %%%%%%%%%%%%%%
+%             else
+%                 if( toc(obj.planTime) <= obj.graspTime )
+%                     l_kInit = 0; % <---- Unactauted gripper curvature
+%                     l_kTarget = obj.linInterpolate(toc(obj.planTime), obj.graspTime, l_kInit, obj.graspCurvature);
+%                     obj.arm2D.gripper2D.setTargetCurvatures(l_kTarget);
+%                     obj.arm2D.actuate();
+%                 else
+%                     obj.arm2D.gripper2D.setTargetCurvatures( obj.graspCurvature );
+%                     obj.arm2D.actuate();
+%                 end
+%             end
         end
         %An interporlation function
         function valBetween = linInterpolate(obj, distanceCurrent, distanceMax, posInitial, posFinal)

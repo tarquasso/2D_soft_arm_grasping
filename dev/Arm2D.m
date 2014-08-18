@@ -22,8 +22,8 @@ classdef Arm2D < handle
             % Dimensions and orientation of the arm
             obj.dims = struct();
             obj.dims.S = 6;          % is the total number of arm segments
-            obj.dims.kMin = -20;     % minimum allowable curvature
-            obj.dims.kMax = 20;      % maximum allowable curvature
+            obj.dims.kMin = [-11.0, -18.5, -11.0, -14.1, -11.8, -17.4];     % minimum allowable curvature
+            obj.dims.kMax = [13.8, 10.0, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
             obj.dims.thetaStart = pi/2;   % is the current/measured initial orientation of the first segment
             %obj.dims.spos = [263.8; 152.7] .* unitsratio('m','mm');
             
@@ -51,7 +51,7 @@ classdef Arm2D < handle
                 above_max = 'false';
                 
                 for i = 1:obj.dims.S
-                    if( (val(i) < obj.dims.kMin) || (val(i) > obj.dims.kMax) )
+                    if( (val(i) < obj.dims.kMin(i)) || (val(i) > obj.dims.kMax(i)) )
                         above_max = 'true';
                     end
                 end
@@ -68,6 +68,7 @@ classdef Arm2D < handle
         end
         
         function actuate(obj)
+            obj.kTarget - obj.kMeas
             obj.curvatureController.sendCurvatureErrors( [obj.kTarget,obj.gripper2D.kTarget] ,...
                 [obj.kMeas,obj.gripper2D.kMeas] );
 
@@ -168,8 +169,8 @@ classdef Arm2D < handle
             b = [];
             Aeq = [];
             beq = [];
-            lb = obj.dims.kMin*ones(1,6);
-            ub = obj.dims.kMax*ones(1,6);
+            lb = obj.dims.kMin;
+            ub = obj.dims.kMax;
             
             l_optTime = tic;
             options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
@@ -193,14 +194,15 @@ classdef Arm2D < handle
                 g = 2.*k;
             end
         end
-        %Plot the measured state of the 2D
-        function h = plotArmToHandle(obj, k)
+        %Plot the target state of the 2D
+        function h = plotArmTargetToHandle(obj, k)
+            
             
             l_N = obj.dims.S + 1;
             l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
             l_k = [k, obj.gripper2D.kMeas];
             
-            M = 20;
+            M = 10;
             total = 1;
             x = zeros(1, l_N*M);
             y = zeros(1, l_N*M);
@@ -218,6 +220,37 @@ classdef Arm2D < handle
             axis square
             
             h = plot(x(1:end-20),y(1:end-20), 'r', x(end-20:end),y(end-20:end), 'k', 'LineWidth', 2);
+
+            drawnow;
+            
+        end
+        %Plot the measured state of the 2D
+        function h = plotArmMeasToHandle(obj, k)
+            
+            
+            l_N = obj.dims.S + 1;
+            l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
+            l_k = [k, obj.gripper2D.kMeas];
+            
+            M = 10;
+            total = 1;
+            x = zeros(1, l_N*M);
+            y = zeros(1, l_N*M);
+            theta = zeros(1, l_N*M);
+            
+            for i=1:l_N
+                for j=1:M
+                    [x(total), y(total), theta(total)] = obj.recursiveForwardKinematics( l_k, i, l_arcLen(i)*(j/M));
+                    total = total + 1;
+                end
+            end
+            
+            hold on
+            axis([-0.30 0.30 -0.10 0.50])
+            axis square
+            
+            h = plot(x(1:end-20),y(1:end-20), 'b', x(end-20:end),y(end-20:end), 'k', 'LineWidth', 2);
+
             drawnow;
             
         end

@@ -11,7 +11,8 @@ classdef ArmController2D < handle
         simulationTime;
         shapeHistory;
         
-        armPlotHandle;
+        armPlotHandleTarget;
+        armPlotHandleMeas;
         objectPlotHandle;
     end
     
@@ -39,13 +40,17 @@ classdef ArmController2D < handle
         function sensorMeasurementsDone(obj)
             obj.plannerGrasp.plan();
             
-            if( isempty(obj.armPlotHandle) )
-                obj.armPlotHandle = obj.arm2D.plotArmToHandle(obj.arm2D.kTarget);
+            if( isempty(obj.armPlotHandleTarget) )
+                obj.armPlotHandleTarget = obj.arm2D.plotArmTargetToHandle(obj.arm2D.kTarget);
+                obj.armPlotHandleMeas = obj.arm2D.plotArmMeasToHandle(obj.arm2D.kMeas);
                 obj.objectPlotHandle = obj.roundObject.plotObjectToHandle();
             else
-                delete(obj.armPlotHandle);
-                obj.armPlotHandle = obj.arm2D.plotArmToHandle(obj.arm2D.kTarget);
+%                 delete(obj.armPlotHandleTarget);
+%                 obj.armPlotHandleTarget = obj.arm2D.plotArmTargetToHandle(obj.arm2D.kTarget);
                 
+                delete(obj.armPlotHandleMeas);
+                obj.armPlotHandleMeas = obj.arm2D.plotArmMeasToHandle(obj.arm2D.kMeas);
+
                 delete(obj.objectPlotHandle);
                 obj.objectPlotHandle = obj.roundObject.plotObjectToHandle();       
             end
