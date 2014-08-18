@@ -1,1 +1,39 @@
 *.asv
+*.rxw64
+*.bat
+*.bc
+*.c
+*.h
+*.mk
+*.rsp
+*.sldd
+*.slddc
+*.tmw
+*.exp
+*.tlc
+*.mexw64
+*.manifest
+*.mol
+*.mak
+*.map
+dev/controller computer/PistonController_rtwin_win64/PistonController_targ_data_map.m
+dev/controller computer/PistonController_rtwin_win64/buildInfo.mat
+dev/controller computer/PistonController_rtwin_win64/build_exception.mat
+dev/controller computer/PistonController_rtwin_win64/defines.txt
+dev/controller computer/PistonController_rtwin_win64/modelsources.txt
+dev/controller computer/PistonController_rtwin_win64/rtwtypeschksum.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/rtw/rtwin/info/binfo.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/binfo.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/chart1_kyKx5znaSOkxI5UGqNEBP.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/chart2_kyKx5znaSOkxI5UGqNEBP.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/chart3_kyKx5znaSOkxI5UGqNEBP.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/chart4_kyKx5znaSOkxI5UGqNEBP.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/chart5_kyKx5znaSOkxI5UGqNEBP.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/chart6_kyKx5znaSOkxI5UGqNEBP.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/chart7_2wRS3HVhMC7ekReo1pHUEC.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/chart7_X7cDP8KUSkpTvdu3ngchJE.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/info/chart7_kyKx5znaSOkxI5UGqNEBP.mat
+dev/controller computer/slprj/_sfprj/PistonController/_self/sfun/src/rtwtypeschksum.mat
+dev/controller computer/slprj/rtwin_win64/PistonController/tmwinternal/binfo.mat
+dev/controller computer/slprj/rtwin_win64/PistonController/tmwinternal/minfo.mat
+dev/controller computer/slprj/rtwin_win64/_sharedutils/tflSUInfo.mat
