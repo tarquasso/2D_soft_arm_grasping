@@ -64,8 +64,8 @@ classdef PlannerGrasp < handle
             obj.advancementPathProfileComputed = 0;
             obj.graspTime = 3.0;
             
-            obj.vMax = 0.025;
-            obj.aMax = 0.005;
+            obj.vMax = 0.015;
+            obj.aMax = 0.0025;
             
             obj.plannerFree = 'true';
 
@@ -85,20 +85,24 @@ classdef PlannerGrasp < handle
                     case 2 % tip is NOT aligned
                         obj.alignArmTip();
                     case 3 % tip is NOT advanced
-                        obj.advanceArmTip();
+                        %obj.advanceArmTip();
                     case 4 % object is NOT grasped
-                        obj.graspObject();
+                        %obj.graspObject();
                     otherwise
                         display('plan executed')
                 end
                 obj.plannerFree = 'true';
             else
-                %send error packet
+                obj.arm2D.actuate();
             end
             
         end
         %Determine whether or not and object has been placed
         function checkObjPlacement(obj)
+            
+            % Target = Measured for arm and gripper
+            obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas);
+            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas);
             
             l_currentObjPosition = [obj.roundObject.x; obj.roundObject.y];
             
@@ -190,13 +194,15 @@ classdef PlannerGrasp < handle
                 plot(l_xTarget, l_yTarget, 'og', 'MarkerSize', 10);
                 
                 if(isempty(obj.arm2D.kTarget))
-                    l_kGuess = obj.arm2D.kMeas;
+                    l_kGuess = 0.1*randn(1, 6);
                 else
                     l_kGuess = obj.arm2D.kTarget;
                 end
                 
                 [l_kTarget] = obj.arm2D.inverseKinematics(l_xTarget, l_yTarget, l_thetaTarget, l_kGuess);
-                obj.arm2D.setTargetCurvatures(l_kTarget');
+                obj.arm2D.setTargetCurvatures(l_kTarget);
+                %obj.arm2D.gripper2D.setTargetCurvatures(0);
+                %obj.arm2D.actuate();
             end
         end
         %Determine and drive arm tip to an advanced pose alongside object
@@ -235,6 +241,8 @@ classdef PlannerGrasp < handle
                 l_kGuess = obj.arm2D.kTarget;
                 [l_kTarget] = obj.arm2D.inverseKinematics(l_xTarget, l_yTarget, l_thetaTarget, l_kGuess);
                 obj.arm2D.setTargetCurvatures(l_kTarget);
+                obj.arm2D.gripper2D.setTargetCurvatures(0);
+                %obj.arm2D.actuate();
             end
         end
         %Actuate the gripper to grasp object
@@ -254,8 +262,10 @@ classdef PlannerGrasp < handle
                     l_kInit = 0; % <---- Unactauted gripper curvature
                     l_kTarget = obj.linInterpolate(toc(obj.planTime), obj.graspTime, l_kInit, obj.graspCurvature);
                     obj.arm2D.gripper2D.setTargetCurvatures(l_kTarget);
+                    %obj.arm2D.actuate();
                 else
                     obj.arm2D.gripper2D.setTargetCurvatures( obj.graspCurvature );
+                    %obj.arm2D.actuate();
                 end
             end
         end
@@ -276,12 +286,31 @@ classdef PlannerGrasp < handle
             t2 = (d - (velocity*t1))/velocity;
             tf = 2*t1+t2;
             
-            velocityProfile = foh( [0, t1, t1+t2, tf, tf+0.1], [0, velocity, velocity, 0, 0] );
+            velocityProfile = PlannerGrasp.firstOrderHold( [0, t1, t1+t2, tf, tf+0.1], [0, velocity, velocity, 0, 0] );
         end
         %Get a feasible Cartesian position delta based on a velcoity
         function PositionDelta = getPositionDelta(obj, velocityProfile, tCurrent)
             %tCurrent is the time along a linear path starting at t=0
-            PositionDelta = integral( @(x)ppval(velocityProfile,x), 0, (tCurrent + obj.framePeriod) );
+            PositionDelta = integral( @(x)ppval(velocityProfile,x), 0, (tCurrent + 0.050) );
+        end
+        
+    end
+    
+    methods(Static)
+        function ypp = firstOrderHold(t0,y0)
+            % First-ORDER-HOLD
+            %   Creates a pp form (piecewise polynomial) of order 1 which implements a
+            %   first-order hold.  Use ppval, ppval_safe, or fnval to evaluate it.
+            %   Whatever the size of y0, the last dimension is paired up with time.
+            
+            D = size(y0); L = D(end)-1; D = D(1:(end-1));
+            if (length(t0)~=L+1) error('t0 and y0 do not match'); end
+            
+            y0 = reshape(y0,[],L+1);
+            t0 = reshape(t0,1,L+1);
+            coefs(:,2) = reshape(y0(:,1:L),[],1);
+            coefs(:,1) = reshape(diff(y0,1,2)./repmat(diff(t0),[size(y0,1) 1]),[],1);
+            ypp = mkpp(t0,coefs,D);
         end
     end
 end
