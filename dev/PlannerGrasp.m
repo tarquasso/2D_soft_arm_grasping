@@ -4,6 +4,7 @@ classdef PlannerGrasp < handle
         arm2D;
         roundObject;
         framePeriod;
+        plannerType;
     end
     
     properties(SetAccess=private,GetAccess=public)
@@ -41,7 +42,7 @@ classdef PlannerGrasp < handle
     
     methods
         %Constructor
-        function obj = PlannerGrasp(arm2DHand,roundObjectHand, framePeriod)
+        function obj = PlannerGrasp(plannerTypeInput,arm2DHand,roundObjectHand, framePeriod)
             obj.arm2D =  arm2DHand;
             obj.roundObject = roundObjectHand;
             obj.framePeriod = framePeriod;
@@ -68,7 +69,7 @@ classdef PlannerGrasp < handle
             obj.aMax = 0.001;
             
             obj.plannerFree = 'true';
-
+            obj.plannerType = plannerTypeInput;
         end
         %Destructor
         function delete(obj)
@@ -84,6 +85,10 @@ classdef PlannerGrasp < handle
                         obj.checkObjPlacement();
                     case 2 % tip is NOT aligned
                         obj.alignArmTip();
+%                         switch obj.plannerType
+%                             case PlannerTypes.CartesianPlanner
+%                             case PlannerTypes.ArcSpacePlanner
+%                         end
                     case 3 % tip is NOT advanced
                         obj.advanceArmTip();
                     case 4 % object is NOT grasped
