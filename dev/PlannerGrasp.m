@@ -106,13 +106,17 @@ classdef PlannerGrasp < handle
         
         function arcSpacePlan(obj)
            
-            % Determine concentric circle radii
+            %% TODO
+            % Determine concentric circle radii R = [R_1, R_2, R_3, R_4]
+            % determine the number of radii (I), control loop iteration =
+            % did we get to the set point
             
             % Find local optimal curvatures that satisfy constraints for
             % cylce i
             
             i = 1;
            
+            %% COMPLETE minus debugging
             A = []; % A, b, Aeq, and beq all used for linear constraints, intentionally empty here
             b = [];
             Aeq = [];
@@ -152,7 +156,6 @@ classdef PlannerGrasp < handle
                 yTarget = obj.roundObject.y + R*sin(gamma);
                 thetaTarget = pi/2 + gamma;
                 
-                c = [];                  % nonlinear inequality constraints
                 ceq = zeros(1,3);        % nonlinear equalitity constraints
                 
                 l_i = obj.arm2D.dims.S;
@@ -160,23 +163,23 @@ classdef PlannerGrasp < handle
                 
                 % End effector nonlinear equality constraints <- enforce
                 % tip position 
-                [xCurrent, yCurrent, thetaCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s);
-                ceq(1) = xCurrent - xTarget;
-                ceq(2) = yCurrent - yTarget;
-                ceq(3) = thetaCurrent - thetaTarget;
+                [xTipCurrent, yTipCurrent, thetaTipCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s);
+                ceq(1) = xTipCurrent - xTarget;
+                ceq(2) = yTipCurrent - yTarget;
+                ceq(3) = thetaTipCurrent - thetaTarget;
+                
+                % TODO: rewrite recursive FK to return intermediate
+                % endpoints so that we dont have to call it twice 
                 
                 %  nonlinear inequality constraints on segment N-1 <- ensure wrist object
                 %  avoidance
-                [xCurrent, yCurrent, thetaCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s);
-                               
-                
-                
-                
-                
-                
+                [xWristCurrent, yWristCurrent, thetaWristCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s-1);
+                objectCenter = [obj.roundObject.x; obj.roundObject.y];
+                c = obj.roundObject.r - norm([xWristCurrent; yWristCurrent] - objectCenter, 2); 
             end
             
-            function [E_tot, g] = cost(k)
+            function [E_tot, g] = cost(parametersCurrent)
+                k = parametersCurrent(2:end);
                 E_tot = sum(k.^2);
                 g = 2.*k;
             end
