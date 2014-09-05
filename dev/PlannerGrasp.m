@@ -84,12 +84,13 @@ classdef PlannerGrasp < handle
                     case 1 % object is NOT placed
                         obj.checkObjPlacement();
                     case 2 % tip is NOT aligned
-                        obj.alignArmTip();
-%                         switch obj.plannerType
-%                             case PlannerTypes.CartesianPlanner
-%                             case PlannerTypes.ArcSpacePlanner
-%                         end
-                    case 3 % tip is NOT advanced
+                        switch obj.plannerType
+                            case PlannerTypes.CartesianPlanner
+                                obj.alignArmTip();
+                            case PlannerTypes.ArcSpacePlanner
+                                obj.arcSpacePlan();
+                        end
+                    case 3 
                         obj.advanceArmTip();
                     case 4 % object is NOT grasped
                         obj.graspObject();
@@ -102,6 +103,87 @@ classdef PlannerGrasp < handle
             end
             
         end
+        
+        function arcSpacePlan(obj)
+           
+            % Determine concentric circle radii
+            
+            % Find local optimal curvatures that satisfy constraints for
+            % cylce i
+            
+            i = 1;
+           
+            A = []; % A, b, Aeq, and beq all used for linear constraints, intentionally empty here
+            b = [];
+            Aeq = [];
+            beq = [];
+            
+            % lower and upper bound on decision parameters [theta, curvatures]
+            % theta = end effector angle - pi/2
+            lb = [0, obj.arm2D.dims.kMin];
+            ub = [2*pi, obj.arm2D.dims.kMax];
+            
+            % we assume the arm settles at the optimal k vector before the
+            % next cylce of optimization is called
+            % kOptimal = I x dims.S
+            % gammaOptimal = I x 1
+            
+            if( isempty(kOptimal) )
+                kGuess = obj.arm2D.kMeas;
+                gammaGuess = obj.arm2D.thetaMeas(end);
+            else
+                kGuess = kOptimal(i-1, :);
+                gammaGuess = gammaOptimal(i-1, 1);
+            end
+            
+            guessParameters = [gammaGuess, kGuess];
+ 
+            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
+            optimalParameters = fmincon(@cost,guessParameters,A,b,Aeq,beq,lb,ub,@noncon,options);
+            
+            kOptimal(i,:) = optimalParameters(2:end);
+            gammaOptimal(i,:) = optimalParameters(1);
+            
+            function [c,ceq] = noncon(parametersCurrent)
+                gamma = parametersCurrent(1);
+                k = parametersCurrent(2:end);
+                
+                xTarget = obj.roundObject.x + R*cos(gamma);
+                yTarget = obj.roundObject.y + R*sin(gamma);
+                thetaTarget = pi/2 + gamma;
+                
+                c = [];                  % nonlinear inequality constraints
+                ceq = zeros(1,3);        % nonlinear equalitity constraints
+                
+                l_i = obj.arm2D.dims.S;
+                l_s = obj.arm2D.arcLenMeas(l_i);
+                
+                % End effector nonlinear equality constraints <- enforce
+                % tip position 
+                [xCurrent, yCurrent, thetaCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s);
+                ceq(1) = xCurrent - xTarget;
+                ceq(2) = yCurrent - yTarget;
+                ceq(3) = thetaCurrent - thetaTarget;
+                
+                %  nonlinear inequality constraints on segment N-1 <- ensure wrist object
+                %  avoidance
+                [xCurrent, yCurrent, thetaCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s);
+                               
+                
+                
+                
+                
+                
+            end
+            
+            function [E_tot, g] = cost(k)
+                E_tot = sum(k.^2);
+                g = 2.*k;
+            end
+            
+            
+        end
+        
         %Determine whether or not and object has been placed
         function checkObjPlacement(obj)
             
