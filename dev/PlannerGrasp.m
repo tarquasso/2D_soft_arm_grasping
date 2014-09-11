@@ -35,9 +35,9 @@ classdef PlannerGrasp < handle
         graspTime;
         planTime;
         
-
+        
         vMax;
-        aMax; 
+        aMax;
         
         %ArcSpace Planner
         transitDistInc;
@@ -45,7 +45,7 @@ classdef PlannerGrasp < handle
         rotMovEpsilon;
         arcSpacePlanDone;
         nMov;
-        movAt;
+        moveTo;
         kOptimal;
         gammaOptimal;
         tipOptimal;
@@ -61,9 +61,9 @@ classdef PlannerGrasp < handle
             obj.transitDistInc = 0.05;
             obj.posMoveEpsilon = 0.01;
             obj.rotMovEpsilon = 3.0*(180/3.14159);
-            obj.nMov = 0;
+            obj.nMov = 1;
             obj.arcSpacePlanDone = false;
-            obj.movAt =1;
+            obj.moveTo =1;
             
             %Cartesian Planner
             obj.state = 1;
@@ -109,7 +109,7 @@ classdef PlannerGrasp < handle
                             case PlannerTypes.ArcSpacePlanner
                                 obj.arcSpacePlan();
                         end
-                    case 3 
+                    case 3
                         obj.advanceArmTip();
                     case 4 % object is NOT grasped
                         obj.graspObject();
@@ -125,48 +125,76 @@ classdef PlannerGrasp < handle
         
         function arcSpacePlan(obj)
             if(obj.arcSpacePlanDone == false)
-            
-            % Input is initial end effector pose and we need round object
-            % radius and round object center position
-            finalRadius = obj.arm2D.gripper2D.dims.width/2+obj.roundObject.r;
-            [xTipCur, yTipCur, thetaTipCur] = ...
-                obj.arm2D.recursiveForwardKinematics(obj.arm2D.kMeas,...
-                obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
-            tipToObject = norm([xTipCur; yTipCur] - [obj.roundObject.x; obj.roundObject.y],2);
-            transitDist = tipToObject - finalRadius;
-            
-            obj.nMov = floor(transitDist/obj.transitDistInc);
-            allRadii = zeros(1,obj.nMov);
-            
-            obj.kOptimal = zeros(obj.nMov,obj.arm2D.dims.S);
-            
-            obj.gammaOptimal = zeros(obj.nMov,1);
-            obj.tipOptimal = zeros(obj.nMov,3);
-            
-            for i=1:1:obj.nMov
-                allRadii(i) = tipToObject-i*transitDist/obj.nMov;
-                if i ==1
-                    [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
-                        findOptimalK(allRadii(i),obj.arm2D.thetaMeas(end),obj.arm2D.kMeas);
-                else
-                    [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
-                        findOptimalK(allRadii(i),obj.gammaOptimal(i-1,:),obj.kOptimal(i-1,:));
-                end
-                %calculate tip vector
-                obj.tipOptimal(i,:) = obj.arm2D.recursiveForwardKinematics(obj.kOptimal(i,:), ...
+                
+                % Input is initial end effector pose and we need round object
+                % radius and round object center position
+                finalRadius = obj.arm2D.gripper2D.dims.width/2+obj.roundObject.r;
+                [xTipCur, yTipCur, thetaTipCur] = ...
+                    obj.arm2D.recursiveForwardKinematics(obj.arm2D.kMeas,...
                     obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
-            end
-            obj.arcSpacePlanDone = true;
+                tipToObject = norm([xTipCur; yTipCur] - [obj.roundObject.x; obj.roundObject.y],2);
+                transitDist = tipToObject - finalRadius;
+                
+                obj.nMov = floor(transitDist/obj.transitDistInc);
+                allRadii = zeros(1,obj.nMov);
+                
+                obj.kOptimal = zeros(obj.nMov,obj.arm2D.dims.S);
+                
+                obj.gammaOptimal = zeros(obj.nMov,1);
+                obj.tipOptimal = zeros(obj.nMov,3);
+                
+                for i=1:1:obj.nMov
+                    allRadii(i) = tipToObject-i*transitDist/obj.nMov;
+                    if (i==1)
+                        %define gammaGuess as the initial theta plus 90 degrees
+                        l_gammaGuess = pi/2 + obj.arm2D.thetaMeas(end);
+                        % k guess is initial kmeasured
+                        l_kGuess = obj.arm2D.kMeas;
+                        %find optimal gamma and k using last measured theta and k
+                        [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
+                            findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
+                    else
+                        %find optimal k using last found optimal
+                        %theta and k
+                        l_gammaGuess = obj.gammaOptimal(i-1,:);
+                        l_kGuess = obj.kOptimal(i-1,:);
+                        [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
+                            findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
+                    end
+                    %calculate tip vector
+                    obj.tipOptimal(i,:) = obj.arm2D.recursiveForwardKinematics(obj.kOptimal(i,:), ...
+                        obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
+                end
+                obj.arcSpacePlanDone = true;
+                
             else
-            %if smaller than epsilon    
-            if( norm( obj.arm2D.segPos2D(:,end) - obj.tipOptimal(obj.movAt,1:2)',2) <= obj.posMoveEpsilon ...
-                    && norm( obj.arm2D.thetaMeas(end) - obj.tipOptimal(obj.movAt,3), 2) <= obj.rotMovEpsilon )
-                obj.movAt = obj.movAt +1;
-            end
-            % send the curvature
-                obj.arm2D.setTargetCurvatures(obj.kOptimal(obj.movAt,:));
-                obj.arm2D.gripper2D.setTargetCurvatures(0);   
-                obj.arm2D.actuate();              
+                %check if distance to target radius is smaller than epsilon
+                if( norm( obj.arm2D.segPos2D(:,end) - obj.tipOptimal(obj.moveTo,1:2)',2) <= obj.posMoveEpsilon ...
+                        && norm( obj.arm2D.thetaMeas(end) - obj.tipOptimal(obj.moveTo,3), 2) <= obj.rotMovEpsilon )
+                    %increment move to by 1
+                    obj.moveTo = obj.moveTo +1;
+                end
+                
+                % send target curvatures until final pose is achieved
+                if(obj.moveTo <= obj.nMov)
+                    % send the target curvature to the gripper
+                    obj.arm2D.setTargetCurvatures(obj.kOptimal(obj.moveTo,:));
+                    %set gripper curvature to 0
+                    obj.arm2D.gripper2D.setTargetCurvatures(0);\
+                    % actuate the arm and the gripper
+                    obj.arm2D.actuate();
+                else % obj.moveTo > obj.nMov
+                    %arrived at final pose
+                    display('[ArcSpacePlanner] Arm is at final pose');
+                    %reset moveTo variable back to '1' for next time
+                    obj.moveTo = 1;
+                    %reset arcSpace Planner Done to false for next time
+                    obj.arcSpacePlanDone = false;
+                    %set state of planner to step 4, which is to grasp the object
+                    obj.state = 4;
+                    % get current time
+                    obj.planTime = tic;
+                end
             end
         end
         
@@ -184,7 +212,7 @@ classdef PlannerGrasp < handle
             % theta = end effector angle - pi/2
             lb = [0, obj.arm2D.dims.kMin];
             ub = [2*pi, obj.arm2D.dims.kMax];
-                    
+            
             guessParameters = [gammaGuess, kGuess];
             
             options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3,...
@@ -195,7 +223,7 @@ classdef PlannerGrasp < handle
             
             gammaOptimal = optimalParameters(1);
             kOptimal = optimalParameters(2:end);
-                       
+            
             function [c,ceq] = noncon(parametersCurrent)
                 gamma = parametersCurrent(1);
                 k = parametersCurrent(2:end);
@@ -319,7 +347,7 @@ classdef PlannerGrasp < handle
                 display('Arm is aligned');
                 obj.planTime = tic; % get current time
                 
-            %%%%%%%%%%%%%%%%%%%% drive arm to aligned pose %%%%%%%%%%%%%%%%%
+                %%%%%%%%%%%%%%%%%%%% drive arm to aligned pose %%%%%%%%%%%%%%%%%
             else
                 l_tCurrent = toc(obj.planTime);
                 l_positionDelta = obj.getPositionDelta(obj.alignmentPathProfile, l_tCurrent);
@@ -343,7 +371,7 @@ classdef PlannerGrasp < handle
         end
         %Determine and drive arm tip to an advanced pose alongside object
         function advanceArmTip(obj)
-                        
+            
             if( obj.advancementPathProfileComputed == 0 ) % compute alignement path profile
                 d = norm([obj.alignmentTipPose(1:2)-obj.advancedTipPose(1:2)], 2);
                 obj.advancementPathProfile = obj.generateVelocityProfile( d );
@@ -364,7 +392,7 @@ classdef PlannerGrasp < handle
                 display('Arm is advanced');
                 obj.planTime = tic; % get current time
                 
-            %%%%%%%%%%%%%%%%% otherwise advance the arm %%%%%%%%%%%%%%%
+                %%%%%%%%%%%%%%%%% otherwise advance the arm %%%%%%%%%%%%%%%
             else
                 l_tCurrent = toc(obj.planTime);
                 l_positionDelta = obj.getPositionDelta(obj.advancementPathProfile, l_tCurrent);
@@ -387,24 +415,24 @@ classdef PlannerGrasp < handle
             obj.arm2D.gripper2D.setTargetCurvatures( obj.arm2D.gripper2D.dims.kMax );
             obj.arm2D.actuate();
             
-%             %%%%%%%%%%%%%%%%% if it is at grasp curvature %%%%%%%%%%%%%%%%%
-%             if( norm( l_k - obj.graspCurvature, 2 ) <= 1 )
-%                 obj.state = 5; %then move to next planning state
-%                 display('Gripper has grasped');
-%                 obj.planTime = tic; % get current time
-%                 
-%                 %%%%%%%%%%%% otherwise advance gripper curvature %%%%%%%%%%%%%%
-%             else
-%                 if( toc(obj.planTime) <= obj.graspTime )
-%                     l_kInit = 0; % <---- Unactauted gripper curvature
-%                     l_kTarget = obj.linInterpolate(toc(obj.planTime), obj.graspTime, l_kInit, obj.graspCurvature);
-%                     obj.arm2D.gripper2D.setTargetCurvatures(l_kTarget);
-%                     obj.arm2D.actuate();
-%                 else
-%                     obj.arm2D.gripper2D.setTargetCurvatures( obj.graspCurvature );
-%                     obj.arm2D.actuate();
-%                 end
-%             end
+            %             %%%%%%%%%%%%%%%%% if it is at grasp curvature %%%%%%%%%%%%%%%%%
+            %             if( norm( l_k - obj.graspCurvature, 2 ) <= 1 )
+            %                 obj.state = 5; %then move to next planning state
+            %                 display('Gripper has grasped');
+            %                 obj.planTime = tic; % get current time
+            %
+            %                 %%%%%%%%%%%% otherwise advance gripper curvature %%%%%%%%%%%%%%
+            %             else
+            %                 if( toc(obj.planTime) <= obj.graspTime )
+            %                     l_kInit = 0; % <---- Unactauted gripper curvature
+            %                     l_kTarget = obj.linInterpolate(toc(obj.planTime), obj.graspTime, l_kInit, obj.graspCurvature);
+            %                     obj.arm2D.gripper2D.setTargetCurvatures(l_kTarget);
+            %                     obj.arm2D.actuate();
+            %                 else
+            %                     obj.arm2D.gripper2D.setTargetCurvatures( obj.graspCurvature );
+            %                     obj.arm2D.actuate();
+            %                 end
+            %             end
         end
         %An interporlation function
         function valBetween = linInterpolate(obj, distanceCurrent, distanceMax, posInitial, posFinal)
