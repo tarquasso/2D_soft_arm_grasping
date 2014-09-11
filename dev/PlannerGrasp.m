@@ -38,6 +38,17 @@ classdef PlannerGrasp < handle
 
         vMax;
         aMax; 
+        
+        %ArcSpace Planner
+        transitDistInc;
+        posMoveEpsilon;
+        rotMovEpsilon;
+        arcSpacePlanDone;
+        nMov;
+        movAt;
+        kOptimal;
+        gammaOptimal;
+        tipOptimal;
     end
     
     methods
@@ -46,7 +57,15 @@ classdef PlannerGrasp < handle
             obj.arm2D =  arm2DHand;
             obj.roundObject = roundObjectHand;
             obj.framePeriod = framePeriod;
+            %ArcSpace Planner
+            obj.transitDistInc = 0.05;
+            obj.posMoveEpsilon = 0.01;
+            obj.rotMovEpsilon = 3.0*(180/3.14159);
+            obj.nMov = 0;
+            obj.arcSpacePlanDone = false;
+            obj.movAt =1;
             
+            %Cartesian Planner
             obj.state = 1;
             obj.previousObjPosition = [0; 0];
             obj.changeInObjPositionThreshold = 0.005; % half of a centimeter
@@ -105,17 +124,56 @@ classdef PlannerGrasp < handle
         end
         
         function arcSpacePlan(obj)
-           
-            %% TODO
-            % Determine concentric circle radii R = [R_1, R_2, R_3, R_4]
-            % determine the number of radii (I), control loop iteration =
-            % did we get to the set point
+            if(obj.arcSpacePlanDone == false)
             
+            % Input is initial end effector pose and we need round object
+            % radius and round object center position
+            finalRadius = obj.arm2D.gripper2D.dims.width/2+obj.roundObject.r;
+            [xTipCur, yTipCur, thetaTipCur] = ...
+                obj.arm2D.recursiveForwardKinematics(obj.arm2D.kMeas,...
+                obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
+            tipToObject = norm([xTipCur; yTipCur] - [obj.roundObject.x; obj.roundObject.y],2);
+            transitDist = tipToObject - finalRadius;
+            
+            obj.nMov = floor(transitDist/obj.transitDistInc);
+            allRadii = zeros(1,obj.nMov);
+            
+            obj.kOptimal = zeros(obj.nMov,obj.arm2D.dims.S);
+            
+            obj.gammaOptimal = zeros(obj.nMov,1);
+            obj.tipOptimal = zeros(obj.nMov,3);
+            
+            for i=1:1:obj.nMov
+                allRadii(i) = tipToObject-i*transitDist/obj.nMov;
+                if i ==1
+                    [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
+                        findOptimalK(allRadii(i),obj.arm2D.thetaMeas(end),obj.arm2D.kMeas);
+                else
+                    [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
+                        findOptimalK(allRadii(i),obj.gammaOptimal(i-1,:),obj.kOptimal(i-1,:));
+                end
+                %calculate tip vector
+                obj.tipOptimal(i,:) = obj.arm2D.recursiveForwardKinematics(obj.kOptimal(i,:), ...
+                    obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
+            end
+            obj.arcSpacePlanDone = true;
+            else
+            %if smaller than epsilon    
+            if( norm( obj.arm2D.segPos2D(:,end) - obj.tipOptimal(obj.movAt,1:2)',2) <= obj.posMoveEpsilon ...
+                    && norm( obj.arm2D.thetaMeas(end) - obj.tipOptimal(obj.movAt,3), 2) <= obj.rotMovEpsilon )
+                obj.movAt = obj.movAt +1;
+            end
+            % send the curvature
+                obj.arm2D.setTargetCurvatures(obj.kOptimal(obj.movAt,:));
+                obj.arm2D.gripper2D.setTargetCurvatures(0);   
+                obj.arm2D.actuate();              
+            end
+        end
+        
+        function [gammaOptimal,kOptimal] = findOptimalK(obj,R,gammaGuess,kGuess)
             % Find local optimal curvatures that satisfy constraints for
             % cylce i
             
-            i = 1;
-           
             %% COMPLETE minus debugging
             A = []; % A, b, Aeq, and beq all used for linear constraints, intentionally empty here
             b = [];
@@ -126,28 +184,18 @@ classdef PlannerGrasp < handle
             % theta = end effector angle - pi/2
             lb = [0, obj.arm2D.dims.kMin];
             ub = [2*pi, obj.arm2D.dims.kMax];
-            
-            % we assume the arm settles at the optimal k vector before the
-            % next cylce of optimization is called
-            % kOptimal = I x dims.S
-            % gammaOptimal = I x 1
-            
-            if( isempty(kOptimal) )
-                kGuess = obj.arm2D.kMeas;
-                gammaGuess = obj.arm2D.thetaMeas(end);
-            else
-                kGuess = kOptimal(i-1, :);
-                gammaGuess = gammaOptimal(i-1, 1);
-            end
-            
+                    
             guessParameters = [gammaGuess, kGuess];
- 
-            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
-            optimalParameters = fmincon(@cost,guessParameters,A,b,Aeq,beq,lb,ub,@noncon,options);
             
-            kOptimal(i,:) = optimalParameters(2:end);
-            gammaOptimal(i,:) = optimalParameters(1);
+            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3,...
+                'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
             
+            optimalParameters = fmincon(@cost,guessParameters,A,b,Aeq,beq,...
+                lb,ub,@noncon,options);
+            
+            gammaOptimal = optimalParameters(1);
+            kOptimal = optimalParameters(2:end);
+                       
             function [c,ceq] = noncon(parametersCurrent)
                 gamma = parametersCurrent(1);
                 k = parametersCurrent(2:end);
@@ -162,20 +210,20 @@ classdef PlannerGrasp < handle
                 l_s = obj.arm2D.arcLenMeas(l_i);
                 
                 % End effector nonlinear equality constraints <- enforce
-                % tip position 
+                % tip position
                 [xTipCurrent, yTipCurrent, thetaTipCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s);
                 ceq(1) = xTipCurrent - xTarget;
                 ceq(2) = yTipCurrent - yTarget;
                 ceq(3) = thetaTipCurrent - thetaTarget;
                 
                 % TODO: rewrite recursive FK to return intermediate
-                % endpoints so that we dont have to call it twice 
+                % endpoints so that we dont have to call it twice
                 
                 %  nonlinear inequality constraints on segment N-1 <- ensure wrist object
                 %  avoidance
                 [xWristCurrent, yWristCurrent, thetaWristCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s-1);
                 objectCenter = [obj.roundObject.x; obj.roundObject.y];
-                c = obj.roundObject.r - norm([xWristCurrent; yWristCurrent] - objectCenter, 2); 
+                c = obj.roundObject.r - norm([xWristCurrent; yWristCurrent] - objectCenter, 2);
             end
             
             function [E_tot, g] = cost(parametersCurrent)
@@ -183,10 +231,7 @@ classdef PlannerGrasp < handle
                 E_tot = sum(k.^2);
                 g = 2.*k;
             end
-            
-            
         end
-        
         %Determine whether or not and object has been placed
         function checkObjPlacement(obj)
             
