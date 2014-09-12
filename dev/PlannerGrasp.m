@@ -58,7 +58,7 @@ classdef PlannerGrasp < handle
             obj.roundObject = roundObjectHand;
             obj.framePeriod = framePeriod;
             %ArcSpace Planner
-            obj.transitDistInc = 0.05;
+            obj.transitDistInc = 0.02;
             obj.posMoveEpsilon = 0.01;
             obj.rotMovEpsilon = 3.0*(180/3.14159);
             obj.nMov = 1;
@@ -143,28 +143,41 @@ classdef PlannerGrasp < handle
                 obj.gammaOptimal = zeros(obj.nMov,1);
                 obj.tipOptimal = zeros(obj.nMov,3);
                 
+                % For debugging purposes
+                plot([xTipCur, obj.roundObject.x], [yTipCur, obj.roundObject.y], 'g');
+                
                 for i=1:1:obj.nMov
-                    allRadii(i) = tipToObject-i*transitDist/obj.nMov;
+                    allRadii(1,i) = tipToObject-i*transitDist/obj.nMov;
                     if (i==1)
                         %define gammaGuess as the initial theta plus 90 degrees
-                        l_gammaGuess = pi/2 + obj.arm2D.thetaMeas(end);
+                        l_gammaGuess = pi/2; % + obj.arm2D.thetaMeas(end);
                         % k guess is initial kmeasured
                         l_kGuess = obj.arm2D.kMeas;
                         %find optimal gamma and k using last measured theta and k
                         [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
-                            findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
+                            obj.findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
                     else
                         %find optimal k using last found optimal
                         %theta and k
                         l_gammaGuess = obj.gammaOptimal(i-1,:);
                         l_kGuess = obj.kOptimal(i-1,:);
                         [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
-                            findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
+                            obj.findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
                     end
                     %calculate tip vector
-                    obj.tipOptimal(i,:) = obj.arm2D.recursiveForwardKinematics(obj.kOptimal(i,:), ...
-                        obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
+                    l_i = obj.arm2D.dims.S;
+                    l_s = obj.arm2D.arcLenMeas(l_i);
+                    
+                    [obj.tipOptimal(i,1), obj.tipOptimal(i,2), obj.tipOptimal(i,3)] = ...
+                        obj.arm2D.recursiveForwardKinematics( obj.kOptimal(i,:), l_i, l_s );
+                    
+                    % For debugging purposes
+                    obj.plotArc(allRadii(1,i));
+                    plot( obj.tipOptimal(i,1), obj.tipOptimal(i,2), 'or', 'MarkerSize', 10 );
+                    obj.arm2D.plotArmMeasToHandle(obj.kOptimal(i,:));
+                    drawnow;
                 end
+
                 obj.arcSpacePlanDone = true;
                 
             else
@@ -180,9 +193,9 @@ classdef PlannerGrasp < handle
                     % send the target curvature to the gripper
                     obj.arm2D.setTargetCurvatures(obj.kOptimal(obj.moveTo,:));
                     %set gripper curvature to 0
-                    obj.arm2D.gripper2D.setTargetCurvatures(0);\
+                    obj.arm2D.gripper2D.setTargetCurvatures(0);
                     % actuate the arm and the gripper
-                    obj.arm2D.actuate();
+                    %obj.arm2D.actuate();
                 else % obj.moveTo > obj.nMov
                     %arrived at final pose
                     display('[ArcSpacePlanner] Arm is at final pose');
@@ -196,6 +209,15 @@ classdef PlannerGrasp < handle
                     obj.planTime = tic;
                 end
             end
+        end
+        
+        function plotArc(obj, r)
+            delta_angle = 0.01;
+            
+            ang = 0:delta_angle:2*pi;
+            xp = r*cos(ang);
+            yp = r*sin(ang);
+            h = plot(obj.roundObject.x+xp,obj.roundObject.y+yp,'-g');
         end
         
         function [gammaOptimal,kOptimal] = findOptimalK(obj,R,gammaGuess,kGuess)
@@ -232,6 +254,9 @@ classdef PlannerGrasp < handle
                 yTarget = obj.roundObject.y + R*sin(gamma);
                 thetaTarget = pi/2 + gamma;
                 
+                % visualization for debugging
+                plot(xTarget, yTarget, 'og', 'MarkerSize', 10 );
+                
                 ceq = zeros(1,3);        % nonlinear equalitity constraints
                 
                 l_i = obj.arm2D.dims.S;
@@ -249,15 +274,17 @@ classdef PlannerGrasp < handle
                 
                 %  nonlinear inequality constraints on segment N-1 <- ensure wrist object
                 %  avoidance
-                [xWristCurrent, yWristCurrent, thetaWristCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s-1);
-                objectCenter = [obj.roundObject.x; obj.roundObject.y];
-                c = obj.roundObject.r - norm([xWristCurrent; yWristCurrent] - objectCenter, 2);
+                c = [];
+                %[xWristCurrent, yWristCurrent, thetaWristCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s-1);
+                %objectCenter = [obj.roundObject.x; obj.roundObject.y];
+                %c = obj.roundObject.r - norm([xWristCurrent; yWristCurrent] - objectCenter, 2);
             end
             
             function [E_tot, g] = cost(parametersCurrent)
                 k = parametersCurrent(2:end);
                 E_tot = sum(k.^2);
                 g = 2.*k;
+                g = [0, g];
             end
         end
         %Determine whether or not and object has been placed
@@ -266,7 +293,7 @@ classdef PlannerGrasp < handle
             % Target = Measured for arm and gripper
             obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas);
             obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas);
-            obj.arm2D.actuate(); %set target to be equal to be the measured value
+            %obj.arm2D.actuate(); %set target to be equal to be the measured value
             
             l_currentObjPosition = [obj.roundObject.x; obj.roundObject.y];
             

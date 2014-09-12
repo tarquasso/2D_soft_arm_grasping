@@ -11,10 +11,10 @@ function [] = grasp( )
     ARM.gripper2D.setTargetCurvatures(1.0);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Object %%%%%%%%%%%%%%%%%%%%%%%%
-    xMax = 0.15;
+    xMax = 0.05;
     xMin = -0.15;
     yMax = 0.35;
-    yMin = 0.30;
+    yMin = 0.25;
     
     OBJECT = RoundObject();
     obj_x = (xMax-xMin).*rand(1)+xMin;          % x coordinate of the center of the object  <--- MEASURE FROM MOCAP INITIAL FRAME
@@ -24,7 +24,7 @@ function [] = grasp( )
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Planner %%%%%%%%%%%%%%%%%%%%%%%
     framePeriod = 0.1;
-    PLANNER = PlannerGrasp(ARM, OBJECT, framePeriod);
+    PLANNER = PlannerGrasp(PlannerTypes.ArcSpacePlanner, ARM, OBJECT, framePeriod);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Figure %%%%%%%%%%%%%%%%%%%%%%%%
     figure;
@@ -37,7 +37,7 @@ function [] = grasp( )
     plot([xMin,xMax],[yMin,yMin], '-k');
     plot([xMin,xMax],[yMax,yMax], '-k');
     
-    armPlotHandle = ARM.plotArmToHandle();
+    armPlotHandle = ARM.plotArmMeasToHandle(ARM.kMeas);
     objectPlotHandle = OBJECT.plotObjectToHandle();
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Start Control Loop %%%%%%%%%%%%%%%%%%%%%%%
@@ -47,7 +47,7 @@ function [] = grasp( )
     t.StartFcn = @(myTimerObj, thisEvent)StartFunction;
     t.ExecutionMode = 'fixedRate';
     start(t)
-    pause(30) % <----- Total experiment time
+    pause(10) % <----- Total experiment time
     stop(t)
     delete(t)
     
@@ -56,7 +56,7 @@ function [] = grasp( )
         ARM.gripper2D.setMeasuredCurvatures(ARM.gripper2D.kTarget);
         PLANNER.plan();
         delete(armPlotHandle);
-        armPlotHandle = ARM.plotArmToHandle();
+        armPlotHandle = ARM.plotArmMeasToHandle(ARM.kTarget);
     end
 
     function StartFunction( )

@@ -35,7 +35,7 @@ classdef Arm2D < handle
             obj.numOfRigidBodies = obj.dims.S + obj.gripper2D.dims.S + 1; % plus one is accounting for the base
             %Create a curvature controller
             l_vectorLength = obj.dims.S+obj.gripper2D.dims.S;
-            obj.curvatureController = CurvatureController(l_vectorLength);
+            %obj.curvatureController = CurvatureController(l_vectorLength);
             
         end
         %Destructor
@@ -249,7 +249,7 @@ classdef Arm2D < handle
             axis([-0.30 0.30 -0.10 0.50])
             axis square
             
-            h = plot(x(1:end-20),y(1:end-20), 'b', x(end-20:end),y(end-20:end), 'k', 'LineWidth', 2);
+            h = plot(x(1:end-10),y(1:end-10), 'b', x(end-10:end),y(end-10:end), 'k', 'LineWidth', 2);
 
             drawnow;
             
