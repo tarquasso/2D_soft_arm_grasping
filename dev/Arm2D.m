@@ -36,17 +36,22 @@ classdef Arm2D < handle
             obj.dims.kMin = [-11.0, -18.5, -11.0, -14.1, -11.8, -17.4];     % minimum allowable curvature
             obj.dims.kMax = [13.8, 10.0, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
             obj.dims.thetaStart = pi/2;   % is the current/measured initial orientation of the first segment
-            %obj.dims.spos = [263.8; 152.7] .* unitsratio('m','mm');
+            obj.dims.lengths = repmat(2.47*0.0254,1,obj.dims.S); %[m]
             
-            obj.dims.lengths = repmat(0.06277,1,obj.dims.S); %[m]
-            
-
+            k_init = 0.1*randn(1, 6);
+            obj.setMeasuredLengths(2.47*0.0254*ones(1, obj.dims.S));
+            obj.setMeasuredCurvatures(k_init);
+            obj.setTargetCurvatures(k_init);
+    
+    
             %Create gripper2D before curvature controller
-            obj.gripper2D = Gripper2D;
+            obj.gripper2D = Gripper2D;            
+    
             obj.numOfRigidBodies = obj.dims.S + obj.gripper2D.dims.S + 1; % plus one is accounting for the base
             %Create a curvature controller
             l_vectorLength = obj.dims.S+obj.gripper2D.dims.S;
             obj.curvatureController = CurvatureController(l_vectorLength, expType);
+
             
         end
         %Destructor

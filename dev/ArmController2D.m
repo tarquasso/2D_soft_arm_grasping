@@ -20,10 +20,11 @@ classdef ArmController2D < handle
         % Constructor
         function obj = ArmController2D()
             obj.arm2D = Arm2D( ExpTypes.PhysicalExperiment );
-            obj.baseBoard = BaseBoard();
+            %obj.baseBoard = BaseBoard();
             obj.roundObject = RoundObject();
             obj.sensor = Sensor(obj.arm2D,obj.roundObject,obj);
-            obj.plannerGrasp = PlannerGrasp(PlannerTypes.ArcSpacePlanner,obj.arm2D,obj.roundObject,obj.sensor);
+            obj.plannerGrasp = PlannerGrasp(PlannerTypes.ArcSpacePlanner,...
+                obj.arm2D,obj.roundObject, 1/obj.sensor.frameRate ); % last parameter is frame period
             obj.simulationTime = 45;
             obj.shapeHistory = ShapeHistory(obj.arm2D.dims.S, ...
                 obj.simulationTime * obj.sensor.frameRate);

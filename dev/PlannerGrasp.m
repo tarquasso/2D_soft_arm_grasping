@@ -245,7 +245,7 @@ classdef PlannerGrasp < handle
             guessParameters = [gammaGuess, kGuess];
             
             options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3,...
-                'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
+                'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off','Display','off');
             
             optimalParameters = fmincon(@cost,guessParameters,A,b,Aeq,beq,...
                 lb,ub,@noncon,options);

@@ -15,15 +15,17 @@ classdef Gripper2D <handle
     methods
         %Constructor
         function obj = Gripper2D()
-
+            %Define Gripper dimensions
             obj.dims = struct();
             obj.dims.S = 1;      % is the total number of arm segments
             obj.dims.kMin = 0;     % minimum allowable curvature
             obj.dims.kMax = 40;      % maximum allowable curvature
             obj.dims.offCenter = 0.007; %gripper offset distance in meters
-            %Initialize with some values
-            obj.arcLenMeas = 0.113; %arc length in meters
-            obj.kMeas = 0.01;
+            
+            %Initialize with some values  
+            obj.setMeasuredLengths(4.0*0.0254);
+            obj.setMeasuredCurvatures(1.0);
+            obj.setTargetCurvatures(1.0);            
         end
         %Destructor
         function delete(obj)
@@ -31,7 +33,7 @@ classdef Gripper2D <handle
         %Set target curvature of the gripper
         function setTargetCurvatures(obj, val)
             l_valSize = size(val);
-            if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
+            if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 
                 above_max = 'false';
                 
@@ -54,7 +56,7 @@ classdef Gripper2D <handle
         %Set measured curvature of the gripper
         function setMeasuredCurvatures(obj, val)
             l_valSize = size(val);
-            if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
+            if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 obj.kMeas = val;
             else
                 error('The size of measured k does not match the gripper.');
@@ -63,7 +65,7 @@ classdef Gripper2D <handle
         %Set measured length of the gripper
         function setMeasuredLengths(obj, val)
             l_valSize = size(val);
-            if( l_valSize(1) == obj.dims.S && l_valSize(2) == 1)
+            if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 obj.arcLenMeas = val;
             else
                 error('The size of arcLenMeas does not match the gripper.');

@@ -2,13 +2,13 @@ function [] = grasp( )
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize arm %%%%%%%%%%%%%%%%%%%%%%%%%
     k_init = 0.1*randn(1, 6);
-    ARM = Arm2D();
-    ARM.setMeasuredLengths(2.47*0.0254*ones(1, 6));
-    ARM.setMeasuredCurvatures(k_init);
-    ARM.setTargetCurvatures(k_init);
-    ARM.gripper2D.setMeasuredLengths(4.0*0.0254);
-    ARM.gripper2D.setMeasuredCurvatures(1.0);
-    ARM.gripper2D.setTargetCurvatures(1.0);
+    ARM = Arm2D(ExpTypes.PhysicalExperiment);
+    %ARM.setMeasuredLengths(2.47*0.0254*ones(1, 6));
+    %ARM.setMeasuredCurvatures(k_init);
+    %ARM.setTargetCurvatures(k_init);
+    %ARM.gripper2D.setMeasuredLengths(4.0*0.0254);
+    %ARM.gripper2D.setMeasuredCurvatures(1.0);
+    %ARM.gripper2D.setTargetCurvatures(1.0);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Object %%%%%%%%%%%%%%%%%%%%%%%%
     xMax = -0.10;
@@ -16,14 +16,20 @@ function [] = grasp( )
     yMax = 0.30;
     yMin = 0.20;
     
+%     xMax = -0.05;
+%     xMin = -0.25;
+%     yMax = 0.38;
+%     yMin = 0.10;
+    
     OBJECT = RoundObject();
     obj_x = (xMax-xMin).*rand(1)+xMin;          % x coordinate of the center of the object  <--- MEASURE FROM MOCAP INITIAL FRAME
     obj_y = (yMax-yMin).*rand(1)+yMin;          % y coordinate of the center of the object  <--- MEASURE FROM MOCAP INITIAL FRAME
-    obj_r = 0.025;         % r is the radius of the circle             <--- MEASURE FROM MOCAP INITIAL FRAME
     OBJECT.setMeasuredState(obj_x, obj_y);
     
+    %obj.sensor = Sensor(ARM,OBJECT);
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Planner %%%%%%%%%%%%%%%%%%%%%%%
-    framePeriod = 0.1;
+    framePeriod = 0.01; %s
     PLANNER = PlannerGrasp(PlannerTypes.ArcSpacePlanner, ARM, OBJECT, framePeriod);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Figure %%%%%%%%%%%%%%%%%%%%%%%%
@@ -55,7 +61,7 @@ function [] = grasp( )
         ARM.setMeasuredCurvatures(ARM.kTarget);
         ARM.setMeasuredLengths(2.47*0.0254*ones(1, 6));
         ARM.gripper2D.setMeasuredCurvatures(ARM.gripper2D.kTarget);
-        %ARM.gripper2D.setMeasuredLengths(ARM.gripper2D.kTarget);
+        % ARM.gripper2D.setMeasuredLengths(ARM.gripper2D.kTarget);
         % update kMeas, arcLens, thetaMeas, segPos
         PLANNER.plan();
         delete(armPlotHandle);
