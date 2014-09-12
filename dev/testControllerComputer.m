@@ -1,10 +1,10 @@
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Figure %%%%%%%%%%%%%%%%%%%%%%%%
-xMax = -0.05;
-xMin = -0.25;
-yMax = 0.35;
-yMin = 0.12;
+xMax = -0.10;
+xMin = -0.20;
+yMax = 0.30;
+yMin = 0.20;
 expTime = 45.0;
 
 figure;

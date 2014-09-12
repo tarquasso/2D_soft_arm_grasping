@@ -11,10 +11,10 @@ function [] = grasp( )
     ARM.gripper2D.setTargetCurvatures(1.0);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Object %%%%%%%%%%%%%%%%%%%%%%%%
-    xMax = -0.05;
-    xMin = -0.25;
-    yMax = 0.35;
-    yMin = 0.12;
+    xMax = -0.10;
+    xMin = -0.20;
+    yMax = 0.30;
+    yMin = 0.20;
     
     OBJECT = RoundObject();
     obj_x = (xMax-xMin).*rand(1)+xMin;          % x coordinate of the center of the object  <--- MEASURE FROM MOCAP INITIAL FRAME
@@ -53,7 +53,10 @@ function [] = grasp( )
     
     function TimerFunction
         ARM.setMeasuredCurvatures(ARM.kTarget);
+        ARM.setMeasuredLengths(2.47*0.0254*ones(1, 6));
         ARM.gripper2D.setMeasuredCurvatures(ARM.gripper2D.kTarget);
+        %ARM.gripper2D.setMeasuredLengths(ARM.gripper2D.kTarget);
+        % update kMeas, arcLens, thetaMeas, segPos
         PLANNER.plan();
         delete(armPlotHandle);
         armPlotHandle = ARM.plotArmMeasToHandle(ARM.kTarget);

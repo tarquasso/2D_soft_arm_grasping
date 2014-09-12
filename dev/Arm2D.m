@@ -118,18 +118,21 @@ classdef Arm2D < handle
                 % Calculate the curvatures and angles using the 2 points method
                 for s = 1:obj.dims.S
                     % Calculate properties of the current segment
-                    [obj.kMeas(s), obj.thetaMeas(s+1)] = Arm2D.singSegIK(...
+                    [obj.kMeas(1,s), obj.thetaMeas(s+1)] = Arm2D.singSegIK(...
                         obj.segPos2D(1:2,s),obj.thetaMeas(s), obj.segPos2D(1:2,s+1));
-                    obj.arcLenMeas(s) = wrapToPi(...
+                    obj.arcLenMeas(1,s) = wrapToPi(...
                         obj.thetaMeas(s+1)-obj.thetaMeas(s)) / obj.kMeas(s);
                     
                     % Check #2 - is the calculated length more than 20% different than the
                     % expected length?
-                    l_lengthDiff = (obj.arcLenMeas-obj.dims.lengths(s))/obj.dims.lengths(s);
+                    l_lengthDiff = (obj.arcLenMeas(1,s)-obj.dims.lengths(1,s))/obj.dims.lengths(1,s);
                     if (abs(l_lengthDiff) > 0.20)
                         error('bad arclength for Segment %i: lengt: %f',s,l_lengthDiff);
                     end
                 end
+                
+                %obj.setMeasuredCurvatures(l_kMeas);
+                %obj.setMeasuredLengths(l_arcLenMeas);
                 % HERE ADD THE GRIPPER ANALYSIS FOR s =
                 % (obj.dims.S+1):(obj.dims.S+1+obj.gripper2D.dims.S)
                 % FOR NOW HARDCODED /todo
