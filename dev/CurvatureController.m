@@ -8,17 +8,29 @@ classdef CurvatureController < handle
     properties
         serialPort
         vectorLength
+        expType
     end
     
     methods
-        function obj = CurvatureController(vecLength)
+        function obj = CurvatureController(vecLength,expType)
+            if nargin < 2
+                obj.expType = ExpTypes.PhysicalExperiment;
+            else
+                if(isa(expType,'ExpTypes'))
+                    obj.expType = expType;
+                else
+                    error('wrong type');
+                end
+            end
             obj.vectorLength = vecLength;
-            % Establish the serial port communication
-            display('[CurvatureController] Opening Serial Port on COM1')
-            obj.serialPort = serial('COM1');
-            set(obj.serialPort,'BaudRate',57600,'DataBits',8,'StopBits',1,'Parity','none');
-            fopen(obj.serialPort);
-            display('[CurvatureController] Opened Serial Port on COM1')
+            if (obj.expType == ExpTypes.PhysicalExperiment)
+                % Establish the serial port communication
+                display('[CurvatureController] Opening Serial Port on COM1')
+                obj.serialPort = serial('COM1');
+                set(obj.serialPort,'BaudRate',57600,'DataBits',8,'StopBits',1,'Parity','none');
+                fopen(obj.serialPort);
+                display('[CurvatureController] Opened Serial Port on COM1')
+            end
         end
         
         function command = sendCurvatureErrors( obj, target, measured )
@@ -63,10 +75,12 @@ classdef CurvatureController < handle
             % Expand the command packed along its rows. This is the format which is
             % used by serial port to communicate the error command.
             command = int8( reshape(command,1,[]) );
-            
+            if(obj.expType == ExpTypes.PhysicalExperiment)
             % Send the command
             fwrite(obj.serialPort, command, 'int8');
-            
+            elseif(obj.expType == ExpTypes.Simulation)
+            %TODO: plot or log command for simuolation
+            end
             % Output the input and output data.
             % fprintf('mes: ');
             % fprintf('%9.2f',measured);
@@ -89,12 +103,13 @@ classdef CurvatureController < handle
             %   simulation running on another Windows PC machine. The communication
             %   with the controller is establisher via a serial link with the below
             %   properties.
-            
-            % Close the serial port communication
-            fclose(obj.serialPort);
-            display('[CurvatureController] Closed Serial Port on COM1')
-            delete(obj.serialPort);
-            display('[CurvatureController] Deleted Serial Port on COM1')
+            if (obj.expType == ExpTypes.PhysicalExperiment)
+                % Close the serial port communication
+                fclose(obj.serialPort);
+                display('[CurvatureController] Closed Serial Port on COM1')
+                delete(obj.serialPort);
+                display('[CurvatureController] Deleted Serial Port on COM1')
+            end
         end   
     end
     

@@ -19,7 +19,7 @@ classdef ArmController2D < handle
     methods(Access = public)
         % Constructor
         function obj = ArmController2D()
-            obj.arm2D = Arm2D();
+            obj.arm2D = Arm2D( ExpType.PhysicalExperiment );
             obj.baseBoard = BaseBoard();
             obj.roundObject = RoundObject();
             obj.sensor = Sensor(obj.arm2D,obj.roundObject,obj);

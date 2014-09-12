@@ -70,7 +70,7 @@ classdef PlannerGrasp < handle
             obj.previousObjPosition = [0; 0];
             obj.changeInObjPositionThreshold = 0.005; % half of a centimeter
             obj.timeAtObjPosition = 0.0;
-            obj.timeAtObjPositionThreshold = 4.0;
+            obj.timeAtObjPositionThreshold = 2.0;
             
             obj.initialTipPoseComputed = 0;
             obj.initialTipPose = zeros(3,1);
@@ -128,7 +128,7 @@ classdef PlannerGrasp < handle
                 
                 % Input is initial end effector pose and we need round object
                 % radius and round object center position
-                finalRadius = obj.arm2D.gripper2D.dims.width/2+obj.roundObject.r;
+                finalRadius = obj.arm2D.gripper2D.dims.offCenter+obj.roundObject.r;
                 [xTipCur, yTipCur, thetaTipCur] = ...
                     obj.arm2D.recursiveForwardKinematics(obj.arm2D.kMeas,...
                     obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
@@ -181,9 +181,16 @@ classdef PlannerGrasp < handle
                 obj.arcSpacePlanDone = true;
                 
             else
+                %compute current tip pose from measure curvatures
+                l_i = obj.arm2D.dims.S;
+                l_s = obj.arm2D.arcLenMeas(l_i);
+                
+                [l_tipX, l_tipY, l_tipTheta] = ...
+                    obj.arm2D.recursiveForwardKinematics( obj.arm2D.kMeas, l_i, l_s );
+                
                 %check if distance to target radius is smaller than epsilon
-                if( norm( obj.arm2D.segPos2D(:,end) - obj.tipOptimal(obj.moveTo,1:2)',2) <= obj.posMoveEpsilon ...
-                        && norm( obj.arm2D.thetaMeas(end) - obj.tipOptimal(obj.moveTo,3), 2) <= obj.rotMovEpsilon )
+                if( norm( [l_tipX, l_tipY] - obj.tipOptimal(obj.moveTo,1:2),2) <= obj.posMoveEpsilon ...
+                        && norm( l_tipTheta - obj.tipOptimal(obj.moveTo,3), 2) <= obj.rotMovEpsilon )
                     %increment move to by 1
                     obj.moveTo = obj.moveTo +1;
                 end
@@ -195,7 +202,7 @@ classdef PlannerGrasp < handle
                     %set gripper curvature to 0
                     obj.arm2D.gripper2D.setTargetCurvatures(0);
                     % actuate the arm and the gripper
-                    %obj.arm2D.actuate();
+                    obj.arm2D.actuate();
                 else % obj.moveTo > obj.nMov
                     %arrived at final pose
                     display('[ArcSpacePlanner] Arm is at final pose');
@@ -220,7 +227,7 @@ classdef PlannerGrasp < handle
             h = plot(obj.roundObject.x+xp,obj.roundObject.y+yp,'-g');
         end
         
-        function [gammaOptimal,kOptimal] = findOptimalK(obj,R,gammaGuess,kGuess)
+        function [gammaOptimal,kOptimal] = findOptimalK(obj,approachRadius,gammaGuess,kGuess)
             % Find local optimal curvatures that satisfy constraints for
             % cylce i
             
@@ -250,8 +257,8 @@ classdef PlannerGrasp < handle
                 gamma = parametersCurrent(1);
                 k = parametersCurrent(2:end);
                 
-                xTarget = obj.roundObject.x + R*cos(gamma);
-                yTarget = obj.roundObject.y + R*sin(gamma);
+                xTarget = obj.roundObject.x + approachRadius*cos(gamma);
+                yTarget = obj.roundObject.y + approachRadius*sin(gamma);
                 thetaTarget = pi/2 + gamma;
                 
                 % visualization for debugging
@@ -265,8 +272,12 @@ classdef PlannerGrasp < handle
                 % End effector nonlinear equality constraints <- enforce
                 % tip position
                 [xTipCurrent, yTipCurrent, thetaTipCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s);
-                ceq(1) = xTipCurrent - xTarget;
-                ceq(2) = yTipCurrent - yTarget;
+                
+                xToolCurent = xTipCurrent + obj.roundObject.r*cos(thetaTipCurrent);
+                yToolCurent = yTipCurrent + obj.roundObject.r*sin(thetaTipCurrent);
+                
+                ceq(1) = xToolCurent- xTarget;
+                ceq(2) = yToolCurent - yTarget;
                 ceq(3) = thetaTipCurrent - thetaTarget;
                 
                 % TODO: rewrite recursive FK to return intermediate
@@ -291,9 +302,8 @@ classdef PlannerGrasp < handle
         function checkObjPlacement(obj)
             
             % Target = Measured for arm and gripper
-            obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas);
-            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas);
-            %obj.arm2D.actuate(); %set target to be equal to be the measured value
+            obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas); %set target to be equal to be the measured value
+            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas); %set target to be equal to be the measured value
             
             l_currentObjPosition = [obj.roundObject.x; obj.roundObject.y];
             

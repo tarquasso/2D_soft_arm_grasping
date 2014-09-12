@@ -11,10 +11,10 @@ function [] = grasp( )
     ARM.gripper2D.setTargetCurvatures(1.0);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Object %%%%%%%%%%%%%%%%%%%%%%%%
-    xMax = 0.05;
-    xMin = -0.15;
+    xMax = -0.05;
+    xMin = -0.25;
     yMax = 0.35;
-    yMin = 0.25;
+    yMin = 0.12;
     
     OBJECT = RoundObject();
     obj_x = (xMax-xMin).*rand(1)+xMin;          % x coordinate of the center of the object  <--- MEASURE FROM MOCAP INITIAL FRAME
@@ -47,7 +47,7 @@ function [] = grasp( )
     t.StartFcn = @(myTimerObj, thisEvent)StartFunction;
     t.ExecutionMode = 'fixedRate';
     start(t)
-    pause(10) % <----- Total experiment time
+    pause(12) % <----- Total experiment time
     stop(t)
     delete(t)
     

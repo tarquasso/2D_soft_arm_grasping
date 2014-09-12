@@ -19,8 +19,8 @@ classdef Gripper2D <handle
             obj.dims = struct();
             obj.dims.S = 1;      % is the total number of arm segments
             obj.dims.kMin = 0;     % minimum allowable curvature
-            obj.dims.kMax = 60;      % maximum allowable curvature
-            obj.dims.width = 0.026; %gripper width in meters
+            obj.dims.kMax = 40;      % maximum allowable curvature
+            obj.dims.offCenter = 0.007; %gripper offset distance in meters
             %Initialize with some values
             obj.arcLenMeas = 0.113; %arc length in meters
             obj.kMeas = 0.01;
