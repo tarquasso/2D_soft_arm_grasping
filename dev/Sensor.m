@@ -239,7 +239,7 @@ classdef Sensor < handle
                 % initialize statics
                 p_bufferModulo = 256;
                 p_arrayIndex = 1;
-                p_lastFrameTime = obj.frameOfData.fLatency;
+                p_lastFrameTime = double(obj.frameOfData.fLatency);
                 p_lastFrameID = obj.frameOfData.iFrame;
             end
             
@@ -249,7 +249,7 @@ classdef Sensor < handle
             % so to be accurate we test and report frame drop or duplication
             l_newFrame = true;
             l_droppedFrames = false;
-            l_frameTime = obj.frameOfData.fLatency;
+            l_frameTime = double(obj.frameOfData.fLatency);
             
             l_frameID = obj.frameOfData.iFrame;
             if(l_frameID ==p_lastFrameID)
@@ -284,8 +284,8 @@ classdef Sensor < handle
                     if(obj.frameOfData.nRigidBodies == obj.totalNumRigidBodies)
                         % RigidBodyData with properties:
                         % ID,x,y,z,qx,qy,qz,qw,nMarkers,Markers,MeanError,Tracked
-                        obj.positionTime = l_frameTime * obj.frameRate;
-                        obj.armController2D.plannerGrasp.framePeriod = 1/(obj.frameRate);
+                        obj.positionTime = double(l_frameTime * obj.frameRate);
+                        obj.armController2D.plannerGrasp.framePeriod = double(1/(obj.frameRate));
                         
                         i = 1;
                         j =1;
@@ -293,23 +293,23 @@ classdef Sensor < handle
                         for s = 1:obj.totalNumRigidBodies
                             if (s >= 1 && s <= obj.arm2D.dims.S + 1)
                             %TAKE X position
-                            obj.arm2D.segPos2D(1,i) = obj.frameOfData.RigidBodies(s).z;
+                            obj.arm2D.segPos2D(1,i) = double(obj.frameOfData.RigidBodies(s).z);
                             %TAKE Y position
-                            obj.arm2D.segPos2D(2,i) = obj.frameOfData.RigidBodies(s).x;
+                            obj.arm2D.segPos2D(2,i) = double(obj.frameOfData.RigidBodies(s).x);
                             i = i+1;
                             end
                             if ( s >= obj.arm2D.dims.S +1 &&  s <= obj.arm2D.dims.S +1+obj.arm2D.gripper2D.dims.S)
                              %TAKE X position
-                            obj.arm2D.gripper2D.segPos2D(1,j) = obj.frameOfData.RigidBodies(s).z;
+                            obj.arm2D.gripper2D.segPos2D(1,j) = double(obj.frameOfData.RigidBodies(s).z);
                             %TAKE Y position
-                            obj.arm2D.gripper2D.segPos2D(2,j) = obj.frameOfData.RigidBodies(s).x;
+                            obj.arm2D.gripper2D.segPos2D(2,j) = double(obj.frameOfData.RigidBodies(s).x);
 
                             j = j+1;
-                            end        
+                            end
                             if (s == obj.arm2D.dims.S+1+obj.arm2D.gripper2D.dims.S+1)
-                            obj.roundObject.setMeasuredState(...
-                                obj.frameOfData.RigidBodies(s).z-obj.frameOfData.RigidBodies(1).z ,...
-                                obj.frameOfData.RigidBodies(s).x-obj.frameOfData.RigidBodies(1).x);
+                                l_roundObjectX = double(obj.frameOfData.RigidBodies(s).z-obj.frameOfData.RigidBodies(1).z);
+                                l_roundObjectY = double(obj.frameOfData.RigidBodies(s).x-obj.frameOfData.RigidBodies(1).x);
+                                obj.roundObject.setMeasuredState(l_roundObjectX,l_roundObjectY);
                             end
                         end
                         

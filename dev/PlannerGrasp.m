@@ -257,8 +257,8 @@ classdef PlannerGrasp < handle
                 gamma = parametersCurrent(1);
                 k = parametersCurrent(2:end);
                 
-                xTarget = double(obj.roundObject.x) + double(approachRadius)*cos(gamma);
-                yTarget = double(obj.roundObject.y) + double(approachRadius)*sin(gamma);
+                xTarget = (obj.roundObject.x) + (approachRadius)*cos(gamma);
+                yTarget = (obj.roundObject.y) + (approachRadius)*sin(gamma);
                 thetaTarget = pi/2 + gamma;
                 
                 % visualization for debugging
