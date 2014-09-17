@@ -1,7 +1,7 @@
 function [] = grasp( )
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize arm %%%%%%%%%%%%%%%%%%%%%%%%%
-    k_init = 0.1*randn(1, 6);
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize arm %%%%%%%%%%%%%%%%%%%%%%%%%
+    
     ARM = Arm2D(ExpTypes.PhysicalExperiment);
     %ARM.setMeasuredLengths(2.47*0.0254*ones(1, 6));
     %ARM.setMeasuredCurvatures(k_init);
@@ -10,7 +10,7 @@ function [] = grasp( )
     %ARM.gripper2D.setMeasuredCurvatures(1.0);
     %ARM.gripper2D.setTargetCurvatures(1.0);
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Object %%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Object %%%%%%%%%%%%%%%%%%%%%%%%
     xMax = -0.10;
     xMin = -0.20;
     yMax = 0.30;
@@ -28,7 +28,7 @@ function [] = grasp( )
     
     %obj.sensor = Sensor(ARM,OBJECT);
     
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Planner %%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Planner %%%%%%%%%%%%%%%%%%%%%%%
     framePeriod = 0.01; %s
     PLANNER = PlannerGrasp(PlannerTypes.ArcSpacePlanner, ARM, OBJECT, framePeriod);
     

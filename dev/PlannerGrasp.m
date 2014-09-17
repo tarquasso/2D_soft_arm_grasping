@@ -143,7 +143,7 @@ classdef PlannerGrasp < handle
                 obj.gammaOptimal = zeros(obj.nMov,1);
                 obj.tipOptimal = zeros(obj.nMov,3);
                 
-                % For debugging purposes
+                % For debugging purposes - plot connecting line
                 plot([xTipCur, obj.roundObject.x], [yTipCur, obj.roundObject.y], 'g');
                 
                 for i=1:1:obj.nMov
@@ -257,8 +257,8 @@ classdef PlannerGrasp < handle
                 gamma = parametersCurrent(1);
                 k = parametersCurrent(2:end);
                 
-                xTarget = obj.roundObject.x + approachRadius*cos(gamma);
-                yTarget = obj.roundObject.y + approachRadius*sin(gamma);
+                xTarget = double(obj.roundObject.x) + double(approachRadius)*cos(gamma);
+                yTarget = double(obj.roundObject.y) + double(approachRadius)*sin(gamma);
                 thetaTarget = pi/2 + gamma;
                 
                 % visualization for debugging
