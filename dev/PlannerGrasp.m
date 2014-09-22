@@ -5,6 +5,7 @@ classdef PlannerGrasp < handle
         roundObject;
         framePeriod;
         plannerType;
+        trajGen;
     end
     
     properties(SetAccess=private,GetAccess=public)
@@ -49,18 +50,24 @@ classdef PlannerGrasp < handle
         kOptimal;
         gammaOptimal;
         tipOptimal;
+        trajGenerated;
+        kInit;
+        kGoal;
+        curvatureProfiles;
+        trajectoryEndTime;
     end
     
     methods
         %Constructor
-        function obj = PlannerGrasp(plannerTypeInput,arm2DHand,roundObjectHand, framePeriod)
+        function obj = PlannerGrasp(plannerTypeInput,arm2DHand,roundObjectHand,trajGenHand,framePeriod)
             obj.arm2D =  arm2DHand;
             obj.roundObject = roundObjectHand;
+            obj.trajGen = trajGenHand;
             obj.framePeriod = framePeriod;
             %ArcSpace Planner
-            obj.transitDistInc = 0.02;
-            obj.posMoveEpsilon = 0.01;
-            obj.rotMovEpsilon = 3.0*(180/3.14159);
+            obj.transitDistInc = 0.05;
+            obj.posMoveEpsilon = 0.02;
+            obj.rotMovEpsilon = 7.5*(180/3.14159);
             obj.nMov = 1;
             obj.arcSpacePlanDone = false;
             obj.moveTo =1;
@@ -89,6 +96,9 @@ classdef PlannerGrasp < handle
             
             obj.plannerFree = 'true';
             obj.plannerType = plannerTypeInput;
+            
+            obj.trajGenerated = 0;
+          
         end
         %Destructor
         function delete(obj)
@@ -193,12 +203,48 @@ classdef PlannerGrasp < handle
                         && norm( l_tipTheta - obj.tipOptimal(obj.moveTo,3), 2) <= obj.rotMovEpsilon )
                     %increment move to by 1
                     obj.moveTo = obj.moveTo +1;
+                    obj.trajGenerated = 0; 
                 end
                 
                 % send target curvatures until final pose is achieved
                 if(obj.moveTo <= obj.nMov)
-                    % send the target curvature to the gripper
-                    obj.arm2D.setTargetCurvatures(obj.kOptimal(obj.moveTo,:));
+                    obj.moveTo
+                    display('[ArcSpacePlanner] Arm is moving to next arc');
+                    
+                    if( obj.trajGenerated == 0 )
+                        %generate realizable trajectory
+                        l_kInitial = double(obj.arm2D.kMeas);
+                        l_kTarget = obj.kOptimal(obj.moveTo,:);
+                        l_vMax = 2.0*ones(1,6);
+                        l_aMax = 0.3*ones(1,6);
+                        
+                        [l_seg1CurvatureProfile, tf1] = obj.trajGen.generateVelocityProfile(l_kInitial(1), l_kTarget(1), l_vMax(1), l_aMax(1) );
+                        [l_seg2CurvatureProfile, tf2] = obj.trajGen.generateVelocityProfile(l_kInitial(2), l_kTarget(2), l_vMax(2), l_aMax(2) );
+                        [l_seg3CurvatureProfile, tf3] = obj.trajGen.generateVelocityProfile(l_kInitial(3), l_kTarget(3), l_vMax(3), l_aMax(3) );
+                        [l_seg4CurvatureProfile, tf4] = obj.trajGen.generateVelocityProfile(l_kInitial(4), l_kTarget(4), l_vMax(4), l_aMax(4) );
+                        [l_seg5CurvatureProfile, tf5] = obj.trajGen.generateVelocityProfile(l_kInitial(5), l_kTarget(5), l_vMax(5), l_aMax(5) );
+                        [l_seg6CurvatureProfile, tf6] = obj.trajGen.generateVelocityProfile(l_kInitial(6), l_kTarget(6), l_vMax(6), l_aMax(6) );
+                        
+                        obj.kInit = l_kInitial;
+                        obj.kGoal = l_kTarget;
+                        obj.curvatureProfiles = [l_seg1CurvatureProfile, l_seg2CurvatureProfile, l_seg3CurvatureProfile...
+                            l_seg4CurvatureProfile, l_seg5CurvatureProfile, l_seg6CurvatureProfile];
+                        
+                        obj.trajectoryEndTime = max([tf1, tf2, tf3, tf4, tf5, tf6]);
+                        obj.planTime = tic; % get current time
+                        obj.trajGenerated = 1;
+                    end
+                    
+                    %send intermediate k
+                    l_kIntermediate = zeros(1,6);
+                    l_kIntermediate(1) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(1), toc(obj.planTime), obj.kInit(1));
+                    l_kIntermediate(2) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(2), toc(obj.planTime), obj.kInit(2));
+                    l_kIntermediate(3) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(3), toc(obj.planTime), obj.kInit(3));
+                    l_kIntermediate(4) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(4), toc(obj.planTime), obj.kInit(4));
+                    l_kIntermediate(5) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(5), toc(obj.planTime), obj.kInit(5));
+                    l_kIntermediate(6) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(6), toc(obj.planTime), obj.kInit(6));
+                    
+                    obj.arm2D.setTargetCurvatures(l_kIntermediate);
                     %set gripper curvature to 0
                     obj.arm2D.gripper2D.setTargetCurvatures(0);
                     % actuate the arm and the gripper
@@ -293,8 +339,9 @@ classdef PlannerGrasp < handle
             
             function [E_tot, g] = cost(parametersCurrent)
                 k = parametersCurrent(2:end);
-                E_tot = sum(k.^2);
-                g = 2.*k;
+                R = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+                E_tot = sum( [R(1)*k(1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)].^2);
+                g = 2.*[R(1)*k(1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)];
                 g = [0, g];
             end
         end
@@ -493,7 +540,7 @@ classdef PlannerGrasp < handle
         %Get a feasible Cartesian position delta based on a velcoity
         function PositionDelta = getPositionDelta(obj, velocityProfile, tCurrent)
             %tCurrent is the time along a linear path starting at t=0
-            PositionDelta = integral( @(x)ppval(velocityProfile,x), 0, (tCurrent + 0.050) );
+            PositionDelta = integral( @(x)ppval(velocityProfile,x), 0, (tCurrent + 0.025) );
         end
         
     end

@@ -30,7 +30,8 @@ function [] = grasp( )
     
 %% %%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Planner %%%%%%%%%%%%%%%%%%%%%%%
     framePeriod = 0.01; %s
-    PLANNER = PlannerGrasp(PlannerTypes.ArcSpacePlanner, ARM, OBJECT, framePeriod);
+    TRAJ = TrajGen();
+    PLANNER = PlannerGrasp(PlannerTypes.ArcSpacePlanner, ARM, OBJECT, TRAJ, framePeriod);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Figure %%%%%%%%%%%%%%%%%%%%%%%%
     figure;
