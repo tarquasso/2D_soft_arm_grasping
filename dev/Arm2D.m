@@ -13,6 +13,7 @@ classdef Arm2D < handle
         thetaMeas                % angle vector describing rotation of each segment
         kMeas                    % measured arc curvatures
         kTarget                  % target arc curvatures
+        kIntermediate
         
     end
     
@@ -41,6 +42,7 @@ classdef Arm2D < handle
             k_init = 0.1*randn(1, 6);
             obj.setMeasuredLengths(2.47*0.0254*ones(1, obj.dims.S));
             obj.setMeasuredCurvatures(k_init);
+            obj.kIntermediate = k_init;
             obj.setTargetCurvatures(k_init);
     
     
@@ -85,7 +87,9 @@ classdef Arm2D < handle
         
         function actuate(obj)
             %obj.kTarget - obj.kMeas
-            obj.curvatureController.sendCurvatureErrors( [obj.kTarget,obj.gripper2D.kTarget] ,...
+            l_alpha = 1.0; %currently not filtering
+            obj.kIntermediate = l_alpha*obj.kTarget + (1-l_alpha)*obj.kIntermediate;
+            obj.curvatureController.sendCurvatureErrors( [obj.kIntermediate, obj.gripper2D.kTarget] ,...
                 [obj.kMeas,obj.gripper2D.kMeas] );
 
         end
