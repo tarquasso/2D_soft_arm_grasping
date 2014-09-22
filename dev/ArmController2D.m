@@ -7,6 +7,7 @@ classdef ArmController2D < handle
         baseBoard;
         roundObject;
         sensor;
+        trajGen;
         plannerGrasp;
         simulationTime;
         shapeHistory;
@@ -23,8 +24,9 @@ classdef ArmController2D < handle
             %obj.baseBoard = BaseBoard();
             obj.roundObject = RoundObject();
             obj.sensor = Sensor(obj.arm2D,obj.roundObject,obj);
+            obj.trajGen = TrajGen();
             obj.plannerGrasp = PlannerGrasp(PlannerTypes.ArcSpacePlanner,...
-                obj.arm2D,obj.roundObject, 1/obj.sensor.frameRate ); % last parameter is frame period
+                obj.arm2D,obj.roundObject, obj.trajGen, 1/obj.sensor.frameRate ); % last parameter is frame period
             obj.simulationTime = 45;
             obj.shapeHistory = ShapeHistory(obj.arm2D.dims.S, ...
                 obj.simulationTime * obj.sensor.frameRate);
@@ -46,6 +48,7 @@ classdef ArmController2D < handle
                 obj.armPlotHandleMeas = obj.arm2D.plotArmMeasToHandle(obj.arm2D.kMeas);
                 obj.objectPlotHandle = obj.roundObject.plotObjectToHandle();
             else
+                %plots the intermediate trajectory points
 %                 delete(obj.armPlotHandleTarget);
 %                 obj.armPlotHandleTarget = obj.arm2D.plotArmTargetToHandle(obj.arm2D.kTarget);
                 
