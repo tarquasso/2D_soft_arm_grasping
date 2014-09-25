@@ -10,6 +10,9 @@ classdef Gripper2D <handle
         arcLenMeas;
         kMeas;
         kTarget;
+        
+        calibrated;
+        kMeasInit;
     end
     
     methods
@@ -21,11 +24,12 @@ classdef Gripper2D <handle
             obj.dims.kMin = 0;     % minimum allowable curvature
             obj.dims.kMax = 40;      % maximum allowable curvature
             obj.dims.offCenter = 0.007; %gripper offset distance in meters
-            
+            obj.calibrated = false;
             %Initialize with some values  
             obj.setMeasuredLengths(4.0*0.0254);
             obj.setMeasuredCurvatures(1.0);
-            obj.setTargetCurvatures(1.0);            
+            obj.setTargetCurvatures(1.0);
+            obj.kMeasInit = 1.0;
         end
         %Destructor
         function delete(obj)
@@ -70,6 +74,19 @@ classdef Gripper2D <handle
             else
                 error('The size of arcLenMeas does not match the gripper.');
             end
+        end
+        
+        function calculateSegmentValues( obj)
+            [l_kMeas, l_thetaMeas] = Arm2D.singSegIK(...
+                obj.segPos2D(1:2,1),pi/2, obj.segPos2D(1:2,2));
+                        
+            if(obj.calibrated == false)
+                obj.calibrated = true;
+                obj.kMeasInit = l_kMeas;
+            end
+%             
+           %obj.setMeasuredCurvatures(l_kMeas(1,1));
+            
         end
     end
     

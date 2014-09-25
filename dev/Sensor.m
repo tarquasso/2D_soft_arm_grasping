@@ -312,6 +312,7 @@ classdef Sensor < handle
                                 obj.roundObject.setMeasuredState(l_roundObjectX,l_roundObjectY);
                             end
                         end
+                       
                         
                         % Update Arm and Gripper Values
                         obj.arm2D.calculateSegmentValues();

@@ -11,10 +11,13 @@ classdef Arm2D < handle
     properties(SetAccess=private,GetAccess=public)
         arcLenMeas               % is the current/measured length vector <--- MEASURE FROM MOCAP INITIAL FRAME
         thetaMeas                % angle vector describing rotation of each segment
+        thetaMeasInit
         kMeas                    % measured arc curvatures
+        kMeasInit
         kTarget                  % target arc curvatures
         kIntermediate
         
+        calibrated
     end
     
     methods
@@ -38,6 +41,7 @@ classdef Arm2D < handle
             obj.dims.kMax = [13.8, 10.0, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
             obj.dims.thetaStart = pi/2;   % is the current/measured initial orientation of the first segment
             obj.dims.lengths = repmat(2.47*0.0254,1,obj.dims.S); %[m]
+        
             
             k_init = 0.1*randn(1, 6);
             obj.setMeasuredLengths(2.47*0.0254*ones(1, obj.dims.S));
@@ -54,7 +58,7 @@ classdef Arm2D < handle
             l_vectorLength = obj.dims.S+obj.gripper2D.dims.S;
             obj.curvatureController = CurvatureController(l_vectorLength, expType);
 
-            
+            obj.calibrated = false;
         end
         %Destructor
         function delete(obj)
@@ -87,6 +91,7 @@ classdef Arm2D < handle
         
         function actuate(obj)
             %obj.kTarget - obj.kMeas
+
             l_alpha = 1.0; %currently not filtering
             obj.kIntermediate = l_alpha*obj.kTarget + (1-l_alpha)*obj.kIntermediate;
             obj.curvatureController.sendCurvatureErrors( [obj.kIntermediate, obj.gripper2D.kTarget] ,...
@@ -117,38 +122,44 @@ classdef Arm2D < handle
             %   setSegmentValues( segPos2D )
             %
             %   segPos2D      3xM matrix - center positions of M segments
-           
+            
             % Check #1 - are there enough segments and is the position dimension correct?
-          
-
-                % init thetaMeas and arcLenMeas!
-                obj.thetaMeas(1) = obj.dims.thetaStart;
+            
+            % init thetaMeas and arcLenMeas!
+            obj.thetaMeas(1) = obj.dims.thetaStart;
+            
+            % Calculate the curvatures and angles using the 2 points method
+            for s = 1:obj.dims.S
+                % Calculate properties of the current segment
+                [obj.kMeas(1,s), obj.thetaMeas(s+1)] = Arm2D.singSegIK(...
+                    obj.segPos2D(1:2,s),obj.thetaMeas(s), obj.segPos2D(1:2,s+1));
+                obj.arcLenMeas(1,s) = wrapToPi(...
+                    obj.thetaMeas(s+1)-obj.thetaMeas(s)) / obj.kMeas(s);
                 
-                % Calculate the curvatures and angles using the 2 points method
-                for s = 1:obj.dims.S
-                    % Calculate properties of the current segment
-                    [obj.kMeas(1,s), obj.thetaMeas(s+1)] = Arm2D.singSegIK(...
-                        obj.segPos2D(1:2,s),obj.thetaMeas(s), obj.segPos2D(1:2,s+1));
-                    obj.arcLenMeas(1,s) = wrapToPi(...
-                        obj.thetaMeas(s+1)-obj.thetaMeas(s)) / obj.kMeas(s);
-                    
-                    % Check #2 - is the calculated length more than 20% different than the
-                    % expected length?
-                    l_lengthDiff = (obj.arcLenMeas(1,s)-obj.dims.lengths(1,s))/obj.dims.lengths(1,s);
-                    if (abs(l_lengthDiff) > 0.20)
-                        error('bad arclength for Segment %i: lengt: %f',s,l_lengthDiff);
-                    end
+                % Check #2 - is the calculated length more than 20% different than the
+                % expected length?
+                l_lengthDiff = (obj.arcLenMeas(1,s)-obj.dims.lengths(1,s))/obj.dims.lengths(1,s);
+                if (abs(l_lengthDiff) > 0.20)
+                    error('bad arclength for Segment %i: lengt: %f',s,l_lengthDiff);
                 end
-                
-                %obj.setMeasuredCurvatures(l_kMeas);
-                %obj.setMeasuredLengths(l_arcLenMeas);
-                % HERE ADD THE GRIPPER ANALYSIS FOR s =
-                % (obj.dims.S+1):(obj.dims.S+1+obj.gripper2D.dims.S)
-                % FOR NOW HARDCODED /todo
-                obj.gripper2D.setMeasuredCurvatures(0.01); 
-                obj.gripper2D.setMeasuredLengths(0.113); %arc length in meters
+            end
             
+            if(obj.calibrated == false)
+                obj.calibrated = true;
+                obj.kMeasInit = obj.kMeas;
+                obj.thetaMeasInit = obj.thetaMeas;
+            end
             
+            obj.kMeas = obj.kMeas - obj.kMeasInit;
+            obj.thetaMeas = obj.thetaMeas - obj.thetaMeasInit;
+            obj.thetaMeas(1) = obj.dims.thetaStart;
+            %obj.setMeasuredCurvatures(l_kMeas);
+            %obj.setMeasuredLengths(l_arcLenMeas);
+            % HERE ADD THE GRIPPER ANALYSIS FOR s =
+            % (obj.dims.S+1):(obj.dims.S+1+obj.gripper2D.dims.S)
+            % FOR NOW HARDCODED /todo
+            
+            obj.gripper2D.calculateSegmentValues();          
         end
         
         %Forward kinematic transformation of the 2D arm

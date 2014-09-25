@@ -35,7 +35,8 @@ classdef PlannerGrasp < handle
         
         graspTime;
         planTime;
-        
+        startedToSettle;
+        startedToGrasp;
         
         vMax;
         aMax;
@@ -55,6 +56,9 @@ classdef PlannerGrasp < handle
         kGoal;
         curvatureProfiles;
         trajectoryEndTime;
+        waitTimeForSettle;
+        kOff1;
+        waitTimeForGrasp
     end
     
     methods
@@ -65,12 +69,13 @@ classdef PlannerGrasp < handle
             obj.trajGen = trajGenHand;
             obj.framePeriod = framePeriod;
             %ArcSpace Planner
-            obj.transitDistInc = 0.05;
+            obj.transitDistInc = 0.03;
             obj.posMoveEpsilon = 0.02;
             obj.rotMovEpsilon = 7.5*(180/3.14159);
             obj.nMov = 1;
             obj.arcSpacePlanDone = false;
             obj.moveTo =1;
+            obj.kOff1 = 3;
             
             %Cartesian Planner
             obj.state = 1;
@@ -91,21 +96,24 @@ classdef PlannerGrasp < handle
             obj.advancementPathProfileComputed = 0;
             obj.graspTime = 3.0;
             
-            obj.vMax = 0.005;
+            obj.vMax = 0.002;
             obj.aMax = 0.001;
             
             obj.plannerFree = 'true';
             obj.plannerType = plannerTypeInput;
             
             obj.trajGenerated = 0;
-          
+            obj.startedToSettle = false;
+            obj.startedToGrasp = false;
+            obj.waitTimeForSettle = 1.0;%s
+            obj.waitTimeForGrasp = 1.5; %s
         end
         %Destructor
         function delete(obj)
         end
         %Plan dispatcher
-        function plan(obj)
-            
+        function result = plan(obj)
+            result = 0;
             if( obj.plannerFree)
                 obj.plannerFree = 'false';
                 
@@ -121,15 +129,21 @@ classdef PlannerGrasp < handle
                         end
                     case 3
                         obj.advanceArmTip();
-                    case 4 % object is NOT grasped
+                    case 4
+                        obj.checkArmSettled();
+                    case 5 % object is NOT grasped
                         obj.graspObject();
                     otherwise
-                        display('plan executed')
+                        display('plan executed');
+                        result = 1;
+                        return;
+                       
                 end
                 obj.plannerFree = 'true';
             else
                 obj.arm2D.actuate();
             end
+            
             
         end
         
@@ -215,8 +229,8 @@ classdef PlannerGrasp < handle
                         %generate realizable trajectory
                         l_kInitial = double(obj.arm2D.kMeas);
                         l_kTarget = obj.kOptimal(obj.moveTo,:);
-                        l_vMax = 2.0*ones(1,6);
-                        l_aMax = 0.3*ones(1,6);
+                        l_vMax = 3*ones(1,6);
+                        l_aMax = 1*ones(1,6);
                         
                         [l_seg1CurvatureProfile, tf1] = obj.trajGen.generateVelocityProfile(l_kInitial(1), l_kTarget(1), l_vMax(1), l_aMax(1) );
                         [l_seg2CurvatureProfile, tf2] = obj.trajGen.generateVelocityProfile(l_kInitial(2), l_kTarget(2), l_vMax(2), l_aMax(2) );
@@ -253,9 +267,9 @@ classdef PlannerGrasp < handle
                     %arrived at final pose
                     display('[ArcSpacePlanner] Arm is at final pose');
                     %reset moveTo variable back to '1' for next time
-                    obj.moveTo = 1;
+                    %obj.moveTo = 1;
                     %reset arcSpace Planner Done to false for next time
-                    obj.arcSpacePlanDone = false;
+                    %obj.arcSpacePlanDone = false;
                     %set state of planner to step 4, which is to grasp the object
                     obj.state = 4;
                     % get current time
@@ -263,7 +277,26 @@ classdef PlannerGrasp < handle
                 end
             end
         end
-        
+        %Determine whether or not arm has settled before object
+        function checkArmSettled(obj)
+            display('[ArcSpacePlanner] Waiting for arm to settle');
+            % Target = Measured for arm and gripper
+            
+            obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas); %set target to be equal to be the measured value
+            obj.arm2D.gripper2D.setTargetCurvatures(0.0); %set target to be equal to be the measured value
+            obj.arm2D.actuate();
+            
+            if(obj.startedToSettle==false)
+                obj.planTime = tic;
+                obj.startedToSettle = true;
+
+            else
+                if(toc(obj.planTime) > obj.waitTimeForSettle )
+                    obj.startedToSettle = false;
+                    obj.state = 5; % grasp
+                end              
+            end           
+        end
         function plotArc(obj, r)
             delta_angle = 0.01;
             
@@ -339,9 +372,9 @@ classdef PlannerGrasp < handle
             
             function [E_tot, g] = cost(parametersCurrent)
                 k = parametersCurrent(2:end);
-                R = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
-                E_tot = sum( [R(1)*k(1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)].^2);
-                g = 2.*[R(1)*k(1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)];
+                R = [1, 0.1, 0.1, 0.1, 0.1, 0.1];
+                E_tot = sum( [R(1)*(k(1)+obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)].^2);
+                g = 2.*[R(1)*(k(1)+obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)];
                 g = [0, g];
             end
         end
@@ -495,10 +528,7 @@ classdef PlannerGrasp < handle
         end
         %Actuate the gripper to grasp object
         function graspObject(obj)
-            %%%%%%%%%%%%%%%% is gripper at grasp curvature? %%%%%%%%%%%%%%%
-            obj.arm2D.gripper2D.setTargetCurvatures( obj.arm2D.gripper2D.dims.kMax );
-            obj.arm2D.actuate();
-            
+           
             %             %%%%%%%%%%%%%%%%% if it is at grasp curvature %%%%%%%%%%%%%%%%%
             %             if( norm( l_k - obj.graspCurvature, 2 ) <= 1 )
             %                 obj.state = 5; %then move to next planning state
@@ -517,6 +547,17 @@ classdef PlannerGrasp < handle
             %                     obj.arm2D.actuate();
             %                 end
             %             end
+            if(obj.startedToGrasp == false)
+                obj.planTime = tic;
+                obj.startedToGrasp = true;
+                obj.arm2D.gripper2D.setTargetCurvatures( obj.arm2D.gripper2D.dims.kMax );
+                obj.arm2D.actuate();        
+            else
+                if(toc(obj.planTime) > obj.waitTimeForGrasp )
+                    obj.startedToGrasp = false;
+                    obj.state = 6; % next state
+                end              
+            end    
         end
         %An interporlation function
         function valBetween = linInterpolate(obj, distanceCurrent, distanceMax, posInitial, posFinal)
@@ -543,8 +584,8 @@ classdef PlannerGrasp < handle
             PositionDelta = integral( @(x)ppval(velocityProfile,x), 0, (tCurrent + 0.025) );
         end
         
+
     end
-    
     methods(Static)
         function ypp = firstOrderHold(t0,y0)
             % First-ORDER-HOLD

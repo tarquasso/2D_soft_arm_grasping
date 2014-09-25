@@ -1,5 +1,5 @@
 classdef ExpTypes
    enumeration
-      PhysicalExperiment, Simulation
+      PhysicalExperiment, Simulation, Tuning
    end
 end

@@ -22,8 +22,9 @@ classdef CurvatureController < handle
                     error('wrong type');
                 end
             end
+            if (obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Tuning )
             obj.vectorLength = vecLength;
-            if (obj.expType == ExpTypes.PhysicalExperiment)
+            
                 % Establish the serial port communication
                 display('[CurvatureController] Opening Serial Port on COM1')
                 obj.serialPort = serial('COM1');
@@ -59,7 +60,7 @@ classdef CurvatureController < handle
             % degrees, but makes the error saturate at roughly 90 degrees, what is a
             % sane choice. So if a larger curvature was requested and possible, it will
             % still be driven to that value.
-            c = 127/40;
+            c = 127/20;
             
             % Prepare the command packet. K is the vector of curvatures of
             % segment which effectively chooses which motor to use to control
@@ -75,7 +76,7 @@ classdef CurvatureController < handle
             % Expand the command packed along its rows. This is the format which is
             % used by serial port to communicate the error command.
             command = int8( reshape(command,1,[]) );
-            if(obj.expType == ExpTypes.PhysicalExperiment)
+            if(obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Tuning)
             % Send the command
             fwrite(obj.serialPort, command, 'int8');
             elseif(obj.expType == ExpTypes.Simulation)
@@ -103,7 +104,7 @@ classdef CurvatureController < handle
             %   simulation running on another Windows PC machine. The communication
             %   with the controller is establisher via a serial link with the below
             %   properties.
-            if (obj.expType == ExpTypes.PhysicalExperiment)
+            if (obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Tuning)
                 % Close the serial port communication
                 fclose(obj.serialPort);
                 display('[CurvatureController] Closed Serial Port on COM1')
@@ -128,7 +129,7 @@ classdef CurvatureController < handle
             % The threshold corresponds to a curvature of
             % 5 m^-1, or alternatively a radius of curvature of 20 cm. The theory is
             % that curvature above the value of 5 will be noise-immune.
-            threshold = inf;
+            threshold = 5;
             
             if abs(measured) >= threshold
                 if measured >= 0.0

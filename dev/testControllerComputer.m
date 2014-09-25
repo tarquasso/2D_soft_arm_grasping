@@ -17,7 +17,7 @@ plot([xMax,xMax],[yMin,yMax], '-k');
 plot([xMin,xMax],[yMin,yMin], '-k');
 plot([xMin,xMax],[yMax,yMax], '-k');
 
-ac = ArmController2D;
+ac = ArmController2D(ExpTypes.PhysicalExperiment);
 ac.start;
 
 pause(expTime)
@@ -51,6 +51,4 @@ pause(expTime)
 %    h = plot(l_time, l_kMeas, 'r', l_time, l_kTarget, 'b', 'LineWidth', 2);
 %    drawnow;
 % end
-
-ac.stop;
-ac.delete;
+delete(ac);

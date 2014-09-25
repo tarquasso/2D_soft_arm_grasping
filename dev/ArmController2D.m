@@ -11,16 +11,28 @@ classdef ArmController2D < handle
         plannerGrasp;
         simulationTime;
         shapeHistory;
+        expType;
         
         armPlotHandleTarget;
         armPlotHandleMeas;
         objectPlotHandle;
+        
     end
     
     methods(Access = public)
         % Constructor
-        function obj = ArmController2D()
-            obj.arm2D = Arm2D( ExpTypes.PhysicalExperiment );
+        function obj = ArmController2D(expType)
+             if nargin < 1
+                obj.expType = ExpTypes.PhysicalExperiment;
+            else
+                if(isa(expType,'ExpTypes'))
+                    obj.expType = expType;
+                else
+                    error('wrong type');
+                end
+            end
+            obj.expType = expType;
+            obj.arm2D = Arm2D( obj.expType );
             %obj.baseBoard = BaseBoard();
             obj.roundObject = RoundObject();
             obj.sensor = Sensor(obj.arm2D,obj.roundObject,obj);
@@ -30,7 +42,7 @@ classdef ArmController2D < handle
             obj.simulationTime = 45;
             obj.shapeHistory = ShapeHistory(obj.arm2D.dims.S, ...
                 obj.simulationTime * obj.sensor.frameRate);
-
+            
         end
         function start(obj)
             % attach the frame callback to start the sensor
@@ -41,22 +53,29 @@ classdef ArmController2D < handle
             obj.sensor.stop();
         end
         function sensorMeasurementsDone(obj)
-            obj.plannerGrasp.plan();
-            
-            if( isempty(obj.armPlotHandleTarget) )
-                obj.armPlotHandleTarget = obj.arm2D.plotArmTargetToHandle(obj.arm2D.kTarget);
-                obj.armPlotHandleMeas = obj.arm2D.plotArmMeasToHandle(obj.arm2D.kMeas);
-                obj.objectPlotHandle = obj.roundObject.plotObjectToHandle();
-            else
-                %plots the intermediate trajectory points
-%                 delete(obj.armPlotHandleTarget);
-%                 obj.armPlotHandleTarget = obj.arm2D.plotArmTargetToHandle(obj.arm2D.kTarget);
+            if(obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Simulation)
+                l_result = obj.plannerGrasp.plan();
                 
-                delete(obj.armPlotHandleMeas);
-                obj.armPlotHandleMeas = obj.arm2D.plotArmMeasToHandle(obj.arm2D.kMeas);
-
-                delete(obj.objectPlotHandle);
-                obj.objectPlotHandle = obj.roundObject.plotObjectToHandle();       
+                if( isempty(obj.armPlotHandleTarget) )
+                    obj.armPlotHandleTarget = obj.arm2D.plotArmTargetToHandle(obj.arm2D.kTarget);
+                    obj.armPlotHandleMeas = obj.arm2D.plotArmMeasToHandle(obj.arm2D.kMeas);
+                    obj.objectPlotHandle = obj.roundObject.plotObjectToHandle();
+                else
+                    %plots the intermediate trajectory points
+                    %                 delete(obj.armPlotHandleTarget);
+                    %                 obj.armPlotHandleTarget = obj.arm2D.plotArmTargetToHandle(obj.arm2D.kTarget);
+                    
+                    delete(obj.armPlotHandleMeas);
+                    obj.armPlotHandleMeas = obj.arm2D.plotArmMeasToHandle(obj.arm2D.kMeas);
+                    
+                    delete(obj.objectPlotHandle);
+                    obj.objectPlotHandle = obj.roundObject.plotObjectToHandle();
+                end
+                
+                if(l_result == 1)
+                    obj.stop();
+                    obj.delete();
+                end
             end
         end
         % Destructor
@@ -67,6 +86,6 @@ classdef ArmController2D < handle
             obj.plannerGrasp.delete();
             obj.shapeHistory.delete();
         end
-    end  
+    end
 end
 
