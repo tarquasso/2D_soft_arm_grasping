@@ -30,19 +30,41 @@ close all
 % plot(cur2(:,1),cur2(:,2),'m');
 % legend('ce2','err2','cur2');
 
+
+%% Seg 1
 figure;
-offset = 1300;
+offset = 1150;
 
 hold on;
-plot(mtr3_1(:,1),-(mtr3_1(:,2)-offset),'r');
+plot(ce1(:,1),ce1(:,2),'-g');
+plot(mtr1_1(:,1),-(mtr1_1(:,2)-offset),'-.r');
 
-plot(mtr3_2(:,1),mtr3_2(:,2)-offset,'b');
-plot(ce2(:,1),ce2(:,2),'k');
+plot(mtr1_2(:,1),mtr1_2(:,2)-offset,'-.b');
 
-legend('mtr1','mtr2','ce');
+
+legend('ce1','mtr1','mtr2');
 
 figure;
 hold on;
-plot(ce3(:,1),ce3(:,2)/80,'k');
-plot(err3(:,1),err3(:,2),'r');
-legend('ce2','err2');
+plot(ce1(:,1),ce1(:,2)/15,'k');
+plot(err1(:,1),err1(:,2),'r');
+legend('ce1','err1');
+
+
+% %% Seg 3
+% figure;
+% offset = 1300;
+% 
+% hold on;
+% plot(mtr3_1(:,1),-(mtr3_1(:,2)-offset),'r');
+% 
+% plot(mtr3_2(:,1),mtr3_2(:,2)-offset,'b');
+% plot(ce3(:,1),ce3(:,2),'k');
+% 
+% legend('mtr1','mtr2','ce');
+% 
+% figure;
+% hold on;
+% plot(ce3(:,1),ce3(:,2)/80,'k');
+% plot(err3(:,1),err3(:,2),'r');
+% legend('ce2','err2');
