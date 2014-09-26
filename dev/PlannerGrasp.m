@@ -39,6 +39,7 @@ classdef PlannerGrasp < handle
         planTime;
         startedToSettle;
         startedToGrasp;
+        startedToRelease;
         
         vMax;
         aMax;
@@ -120,6 +121,8 @@ classdef PlannerGrasp < handle
             obj.trajGenerated = 0;
             obj.startedToSettle = false;
             obj.startedToGrasp = false;
+            obj.startedToRelease = false;
+            
             obj.waitTimeForSettle = 1.0;%s
             obj.waitTimeForGrasp = 1.5; %s
         end
@@ -128,11 +131,11 @@ classdef PlannerGrasp < handle
             % Save the shape history
             filename = sprintf('data\\%s.mat', datestr(now));
             filename = strrep(filename,':','_');
-            History = obj.arm2D.shapeHistory;
+            History = obj.shapeHistory;
             save(filename, 'History');
             
             %delete shape history
-            obj.shapeHistory.delete();
+            delete(obj.shapeHistory);
         end
         %Plan dispatcher
         function result = plan(obj)
@@ -158,17 +161,19 @@ classdef PlannerGrasp < handle
                         obj.graspObject();
                     case 6 % move object to bin
                         obj.moveToBin();
+                    case 7 % move object to bin
+                        obj.releaseObject();
                     otherwise
                         display('[PlannerGrasp] Plan fully executed');
                         result = 1; %done
                         return;
-                       
+                        
                 end
                 obj.plannerFree = 'true';
             else
                 obj.arm2D.actuate();
             end
-            
+            obj.logData();
             
         end
         
@@ -176,10 +181,10 @@ classdef PlannerGrasp < handle
             if( isempty( obj.stateTimeInit ) )
                 obj.stateTimeInit = tic;
             end
-            l_N = obj.arm2D.dims.S+1;
+            l_N = obj.arm2D.dims.S;
             l_time = toc(obj.stateTimeInit);
             obj.shapeHistory.add(l_time, obj.arm2D.kMeas, obj.arm2D.arcLenMeas, ...
-                obj.arm2D.kTarget, [obj.arm2D.segPos2D(1,l_N), obj.arm2D.segPos2D(2,l_N)], ...
+                obj.arm2D.kTarget, [obj.arm2D.segPos2D(1,l_N+1), obj.arm2D.segPos2D(2,l_N+1), obj.arm2D.thetaMeas(1, l_N)], ...
                 [obj.roundObject.x, obj.roundObject.y]);
         end
         
@@ -615,24 +620,6 @@ classdef PlannerGrasp < handle
         %Actuate the gripper to grasp object
         function graspObject(obj)
            
-            %             %%%%%%%%%%%%%%%%% if it is at grasp curvature %%%%%%%%%%%%%%%%%
-            %             if( norm( l_k - obj.graspCurvature, 2 ) <= 1 )
-            %                 obj.state = 5; %then move to next planning state
-            %                 display('Gripper has grasped');
-            %                 obj.planTime = tic; % get current time
-            %
-            %                 %%%%%%%%%%%% otherwise advance gripper curvature %%%%%%%%%%%%%%
-            %             else
-            %                 if( toc(obj.planTime) <= obj.graspTime )
-            %                     l_kInit = 0; % <---- Unactauted gripper curvature
-            %                     l_kTarget = obj.linInterpolate(toc(obj.planTime), obj.graspTime, l_kInit, obj.graspCurvature);
-            %                     obj.arm2D.gripper2D.setTargetCurvatures(l_kTarget);
-            %                     obj.arm2D.actuate();
-            %                 else
-            %                     obj.arm2D.gripper2D.setTargetCurvatures( obj.graspCurvature );
-            %                     obj.arm2D.actuate();
-            %                 end
-            %             end
             if(obj.startedToGrasp == false)
                 obj.planTime = tic;
                 obj.startedToGrasp = true;
@@ -642,6 +629,22 @@ classdef PlannerGrasp < handle
                 if(toc(obj.planTime) > obj.waitTimeForGrasp )
                     obj.startedToGrasp = false;
                     obj.state = 6; % next state
+                end              
+            end    
+        end
+        
+         %Actuate the gripper to release object
+        function releaseObject(obj)
+          
+            if(obj.startedToRelease == false)
+                obj.planTime = tic;
+                obj.startedToRelease = true;
+                obj.arm2D.gripper2D.setTargetCurvatures( 0.1 );
+                obj.arm2D.actuate();        
+            else
+                if(toc(obj.planTime) > obj.waitTimeForGrasp )
+                    obj.startedToRelease = false;
+                    obj.state = 8; % next state
                 end              
             end    
         end

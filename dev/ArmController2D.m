@@ -56,6 +56,7 @@ classdef ArmController2D < handle
             if(obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Simulation)
                 if(obj.arm2D.calibrated == true && obj.arm2D.gripper2D.calibrated == true) 
                     l_result = obj.plannerGrasp.plan();
+                    obj.plannerGrasp.logData();
                 else
                     l_result = 0;
                 end

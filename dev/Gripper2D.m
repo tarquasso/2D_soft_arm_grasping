@@ -25,7 +25,8 @@ classdef Gripper2D <handle
             obj.dims.kMin = -10;     % minimum allowable curvature
             obj.dims.kMax = 40;      % maximum allowable curvature
             obj.dims.offCenter = 0.007; %gripper offset distance in meters
-            obj.dims.kThreshold = 4;
+            obj.dims.kThreshold = 5;
+            obj.dims.kEpsilon = 1;
             obj.calibrated = false;
             %Initialize with some values  
             obj.setMeasuredLengths(4.0*0.0254);
@@ -45,7 +46,7 @@ classdef Gripper2D <handle
                 above_max = 'false';
                 
                 for i = 1:obj.dims.S
-                    if( (val(i) < obj.dims.kMin) || (val(i) > obj.dims.kMax) )
+                    if( (val(i) < obj.dims.kMin-obj.dims.kEpsilon) || (val(i) > obj.dims.kMax+obj.dims.kEpsilon) )
                         above_max = 'true';
                     end
                 end

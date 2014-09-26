@@ -323,8 +323,8 @@ classdef Sensor < handle
                         error('[Sensor] Only %i Rigid Bodies, but we need 7!\n',obj.frameOfData.nRigidBodies);
                     end
                 end
-            catch err
-                display(err);
+            catch exc
+                getReport(exc, 'extended')
             end
             
             p_lastFrameTime = l_frameTime;

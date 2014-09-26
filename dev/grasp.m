@@ -30,7 +30,7 @@ OBJECT.setMeasuredState(obj_x, obj_y);
 %obj.sensor = Sensor(ARM,OBJECT);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Planner %%%%%%%%%%%%%%%%%%%%%%%
-framePeriod = 0.01; %s
+framePeriod = 0.1; %s
 TRAJ = TrajGen();
 PLANNER = PlannerGrasp(PlannerTypes.ArcSpacePlanner, ARM, OBJECT, TRAJ, framePeriod);
 
@@ -59,7 +59,7 @@ t.ExecutionMode = 'fixedRate';
 broken = false;
 start(t)
 while(toc(expTimer) < expTime || broken ==false)
-    pause(0.01)
+    pause(0.5)
 end% <----- Total experiment time
 stop(t)
 delete(t)
@@ -76,13 +76,14 @@ delete(t)
                 
                 % ARM.gripper2D.setMeasuredLengths(ARM.gripper2D.kTarget);
                 % update kMeas, arcLens, thetaMeas, segPos
-                
+                ARM.segPos2D = 10*rand(2,7);
+                ARM.setMeasuredTheta(rand(1,6));
                 l_result = PLANNER.plan();
                 
                 delete(armPlotHandle);
                 
-                armPlotHandle = ARM.plotArmMeasToHandle(ARM.kTarget);
-                
+                armPlotHandle = ARM.plotArmMeasToHandle(ARM.kTarget);                
+                %toc(expTimer)
                 if(l_result == 1)
                     broken = true;
                 end
