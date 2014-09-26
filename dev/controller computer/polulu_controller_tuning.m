@@ -8,9 +8,11 @@
 % Kd = 0.15*Kp*Tu
 
 %Curvature controller
-Ku = 100;
+Ku = 80;
 Tu = 0.5;
 Kp = 0.33*Ku
 Ki = 2*Kp/Tu
 Kd = Kp*Tu/3
 
+
+%25 0.03 0.5
