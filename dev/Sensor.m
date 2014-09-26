@@ -36,7 +36,7 @@ classdef Sensor < handle
             % Connect to an OptiTrack server (Motive)
             obj.connectToOptiTrack();
             % print out a list of the active tracking Models in Motive
-            obj.getTrackedDataDescriptions()
+            %obj.getTrackedDataDescriptions()
             % get frame rate of tracking system
             obj.getFrameRate();
         end
