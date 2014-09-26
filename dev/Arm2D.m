@@ -30,7 +30,7 @@ classdef Arm2D < handle
                 if(isa(expType,'ExpTypes'))
                     %obj.expType = expType;
                 else
-                    error('wrong type');
+                    display('ERROR: [ARM2D-Constructor] wrong type');
                 end
             end
             
@@ -107,7 +107,7 @@ classdef Arm2D < handle
             if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 obj.kMeas = val;
             else
-                error('The size of measured k does not match the arm.');
+                display('ERROR: [ARM2D-setMeasuredCurvatures] The size of measured k does not match the arm.');
             end
         end
         %Set Measured Lengths of the 2D arm
@@ -116,7 +116,7 @@ classdef Arm2D < handle
             if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 obj.arcLenMeas = val;
             else
-                error('The size of measured arcLenMeas does not match the arm.');
+                display('ERROR: [ARM2D-setMeasuredLengths] The size of measured arcLenMeas does not match the arm.');
             end
         end
         
@@ -143,7 +143,7 @@ classdef Arm2D < handle
                 % expected length?
                 l_lengthDiff = (obj.arcLenMeas(1,s)-obj.dims.lengths(1,s))/obj.dims.lengths(1,s);
                 if (abs(l_lengthDiff) > 0.20)
-                    error('bad arclength for Segment %i: lengt: %f',s,l_lengthDiff);
+                    display('[ARM2D-calculateSegmentValues] bad arclength for Segment %i: lengt: %f',s,l_lengthDiff);
                 end
             end
             
@@ -184,7 +184,7 @@ classdef Arm2D < handle
             l_valSize = length(k);
             
             if( i > l_valSize )
-                error('The size of k does not match the segment of interest.');
+                display('ERROR: [ARM2D-recursiveForwardKinematics] The size of k does not match the segment of interest.');
             end
             
             l_thetaStart = obj.dims.thetaStart;
@@ -216,7 +216,7 @@ classdef Arm2D < handle
             ub = obj.dims.kMax;
             
             l_optTime = tic;
-            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
+            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off','Display','off');
             kTarget = fmincon(@cost,kGuess,A,b,Aeq,beq,lb,ub,@noncon,options);
             toc(l_optTime)
             

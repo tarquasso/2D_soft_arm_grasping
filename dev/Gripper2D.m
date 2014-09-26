@@ -29,8 +29,8 @@ classdef Gripper2D <handle
             obj.calibrated = false;
             %Initialize with some values  
             obj.setMeasuredLengths(4.0*0.0254);
-            obj.setMeasuredCurvatures(0.0);
-            obj.setTargetCurvatures(0.0);
+            obj.setMeasuredCurvatures(0.01);
+            obj.setTargetCurvatures(0.01);
             obj.kMeasInit = 1.0;
             obj.thetaMeas = zeros(1,2);
         end

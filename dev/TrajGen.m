@@ -10,8 +10,8 @@ classdef TrajGen < handle
         function obj = TrajGen()
             %TODO: trajGen should have handle to arm2D to know the
             %dimensions of the arm
-            obj.vMax = 3*ones(1,6);
-            obj.aMax = 1*ones(1,6);
+            obj.vMax = 1.5*ones(1,6); %working: 3*ones(1,6);
+            obj.aMax = 0.5*ones(1,6); %working: 1*ones(1,6);
         end
         
         %Generate multiple feasible Cartestian velocity profiles given a desired distance to move
@@ -49,7 +49,7 @@ classdef TrajGen < handle
             velocityProfile = PlannerGrasp.firstOrderHold([0, t1, t2, tf, tf+0.1], [0, velocity, velocity, 0, 0]);
         end
         %Get multiple feasible Cartesian position deltas based on a velcoity
-        function [l_kIntermediate] = generateMultplePositionDeltas(l_curvatureProfiles, l_time, l_kInit)
+        function [l_kIntermediate] = generateMultiplePositionDeltas(obj, l_curvatureProfiles, l_time, l_kInit)
             
             l_kIntermediate = zeros(1,6);
             l_kIntermediate(1) = obj.getPositionDelta(l_curvatureProfiles(1), l_time, l_kInit(1));

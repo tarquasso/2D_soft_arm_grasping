@@ -22,9 +22,8 @@ classdef CurvatureController < handle
                     error('wrong type');
                 end
             end
-            if (obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Tuning )
             obj.vectorLength = vecLength;
-            
+            if (obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Tuning )           
                 % Establish the serial port communication
                 display('[CurvatureController] Opening Serial Port on COM1')
                 obj.serialPort = serial('COM1');

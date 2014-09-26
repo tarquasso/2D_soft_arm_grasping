@@ -74,8 +74,8 @@ classdef PlannerGrasp < handle
             obj.framePeriod = framePeriod;
             %ArcSpace Planner
             obj.transitDistInc = 0.03;
-            obj.posMoveEpsilon = 0.02;
-            obj.rotMovEpsilon = 7.5*(180/3.14159);
+            obj.posMoveEpsilon = 0.01;%working: 0.02;
+            obj.rotMovEpsilon = 5.0*(180/3.14159);%working: 7.5*(180/3.14159);
             obj.nMov = 1;
             obj.arcSpacePlanDone = false;
             obj.moveTo = 1;
@@ -145,7 +145,7 @@ classdef PlannerGrasp < handle
                         obj.moveToBin();
                     otherwise
                         display('[PlannerGrasp] Plan fully executed');
-                        result = 1;
+                        result = 1; %done
                         return;
                        
                 end
@@ -163,7 +163,7 @@ classdef PlannerGrasp < handle
                 obj.arm2D.recursiveForwardKinematics(obj.arm2D.kMeas,...
                 obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
             
-            if(  norm(([obj.xBin; obj.yBin]-[xTipCur; yTipCur]),2) <= obj.posMoveEpsilon )
+            if(  norm(([obj.xBin; obj.yBin]-[xTipCur; yTipCur]),2) >= obj.posMoveEpsilon )
                 
                 if( obj.binTrajGenerated == 0 )
                     
@@ -176,7 +176,7 @@ classdef PlannerGrasp < handle
                     l_kGuess = 0.01*ones(1, obj.arm2D.dims.S); %approx zeros curvatures
                     [l_kTarget] = obj.arm2D.inverseKinematics(obj.xBin, obj.yBin, l_thetaTarget, l_kGuess);
                     % request multiple configuration velocity trajs
-                    [obj.curvatureProfiles, obj.trajectoryEndTime ] = obj.trajGen.generateMultipleVelocityProfiles(obj, l_kInitial, l_kTarget );
+                    [obj.curvatureProfiles, obj.trajectoryEndTime ] = obj.trajGen.generateMultipleVelocityProfiles(l_kInitial, l_kTarget );
                     % store start and end values
                     obj.kInit = l_kInitial;
                     obj.kGoal = l_kTarget;
@@ -186,7 +186,7 @@ classdef PlannerGrasp < handle
                 end
                 
                 %generate intermediate k
-                [l_kIntermediate] = obj.trajGen.generateMultplePositionDeltas(obj.curvatureProfiles, toc(obj.planTime), obj.kInit);
+                [l_kIntermediate] = obj.trajGen.generateMultiplePositionDeltas(obj.curvatureProfiles, toc(obj.planTime), obj.kInit);
                 %send intermediate k
                 obj.arm2D.setTargetCurvatures(l_kIntermediate);
                 % actuate the arm and the gripper
@@ -197,7 +197,7 @@ classdef PlannerGrasp < handle
                 %send k to measured to stop arm
                 obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas);
                 %set gripper curvature to 0
-                obj.arm2D.gripper2D.setTargetCurvatures(0);
+                obj.arm2D.gripper2D.setTargetCurvatures(0.01);
                 % actuate the arm and the gripper
                 obj.arm2D.actuate();
                 %set state of planner to step 7, which is to finish
@@ -292,7 +292,7 @@ classdef PlannerGrasp < handle
                         l_kInitial = double(obj.arm2D.kMeas); % config traj start values
                         l_kTarget = obj.kOptimal(obj.moveTo,:); % config traj end values
                         % request multiple configuration velocity trajs
-                        [obj.curvatureProfiles, obj.trajectoryEndTime ] = obj.trajGen.generateMultipleVelocityProfiles(obj, l_kInitial, l_kTarget );
+                        [obj.curvatureProfiles, obj.trajectoryEndTime ] = obj.trajGen.generateMultipleVelocityProfiles(l_kInitial, l_kTarget );
                         % store start and end values
                         obj.kInit = l_kInitial;
                         obj.kGoal = l_kTarget;
@@ -302,11 +302,11 @@ classdef PlannerGrasp < handle
                     end
                     
                     %generate intermediate k
-                    [l_kIntermediate] = obj.trajGen.generateMultplePositionDeltas(obj.curvatureProfiles, toc(obj.planTime), obj.kInit);
+                    [l_kIntermediate] = obj.trajGen.generateMultiplePositionDeltas(obj.curvatureProfiles, toc(obj.planTime), obj.kInit);
                     %send intermediate k
                     obj.arm2D.setTargetCurvatures(l_kIntermediate);
                     %set gripper curvature to 0
-                    obj.arm2D.gripper2D.setTargetCurvatures(0);
+                    obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas);
                     % actuate the arm and the gripper
                     obj.arm2D.actuate();
                 else % obj.moveTo > obj.nMov
@@ -329,7 +329,7 @@ classdef PlannerGrasp < handle
             % Target = Measured for arm and gripper
             
             obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas); %set target to be equal to be the measured value
-            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas); %set target to be equal to be the measured value
+            obj.arm2D.gripper2D.setTargetCurvatures(0.01); %set target to be equal to be the measured value
             obj.arm2D.actuate();
             
             if(obj.startedToSettle==false)
@@ -542,7 +542,7 @@ classdef PlannerGrasp < handle
                 
                 [l_kTarget] = obj.arm2D.inverseKinematics(l_xTarget, l_yTarget, l_thetaTarget, l_kGuess);
                 obj.arm2D.setTargetCurvatures(l_kTarget);
-                obj.arm2D.gripper2D.setTargetCurvatures(0);
+                obj.arm2D.gripper2D.setTargetCurvatures(0.01);
                 obj.arm2D.actuate();
             end
         end
@@ -582,7 +582,7 @@ classdef PlannerGrasp < handle
                 l_kGuess = obj.arm2D.kTarget;
                 [l_kTarget] = obj.arm2D.inverseKinematics(l_xTarget, l_yTarget, l_thetaTarget, l_kGuess);
                 obj.arm2D.setTargetCurvatures(l_kTarget);
-                obj.arm2D.gripper2D.setTargetCurvatures(0);
+                obj.arm2D.gripper2D.setTargetCurvatures(0.01);
                 obj.arm2D.actuate();
             end
         end
