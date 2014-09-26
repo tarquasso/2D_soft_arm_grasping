@@ -8,6 +8,7 @@ classdef Gripper2D <handle
     properties(SetAccess=private,GetAccess=public)
         
         arcLenMeas;
+        thetaMeas;
         kMeas;
         kTarget;
         
@@ -21,7 +22,7 @@ classdef Gripper2D <handle
             %Define Gripper dimensions
             obj.dims = struct();
             obj.dims.S = 1;      % is the total number of arm segments
-            obj.dims.kMin = -5;     % minimum allowable curvature
+            obj.dims.kMin = -10;     % minimum allowable curvature
             obj.dims.kMax = 40;      % maximum allowable curvature
             obj.dims.offCenter = 0.007; %gripper offset distance in meters
             obj.dims.kThreshold = 4;
@@ -31,6 +32,7 @@ classdef Gripper2D <handle
             obj.setMeasuredCurvatures(0.0);
             obj.setTargetCurvatures(0.0);
             obj.kMeasInit = 1.0;
+            obj.thetaMeas = zeros(1,2);
         end
         %Destructor
         function delete(obj)
@@ -51,11 +53,11 @@ classdef Gripper2D <handle
                 if( strcmp(above_max, 'false') )
                     obj.kTarget = val;
                 else
-                    error('An element of k exceeds allowable gripper limit')
+                    display('ERROR: [Gripper2D-setTargetCurvatures] An element of k exceeds allowable gripper limit')
                 end
                 
             else
-                error('The size of k does not match the gripper.')
+                display('ERROR: [Gripper2D-setTargetCurvatures] The size of k does not match the gripper.')
             end
         end
         %Set measured curvature of the gripper
@@ -64,7 +66,7 @@ classdef Gripper2D <handle
             if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 obj.kMeas = val;
             else
-                error('The size of measured k does not match the gripper.');
+                display('ERROR: [Gripper2D-setMeasuredCurvatures] The size of measured k does not match the gripper.');
             end
         end
         %Set measured length of the gripper
@@ -73,21 +75,22 @@ classdef Gripper2D <handle
             if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 obj.arcLenMeas = val;
             else
-                error('The size of arcLenMeas does not match the gripper.');
+                display('ERROR: [Gripper2D-setMeasuredLengths]The size of arcLenMeas does not match the gripper.');
             end
         end
         
-        function calculateSegmentValues( obj)
-            [l_kMeas, l_thetaMeas] = Arm2D.singSegIK(...
-                obj.segPos2D(1:2,1),pi/2, obj.segPos2D(1:2,2));
-            if (l_kMeas < obj.dims.kMin)
-            l_kMeas = abs(l_kMeas);
-            end
+        function calculateSegmentValues( obj, thetaMeasStart)
+            obj.thetaMeas(1,1) = thetaMeasStart;
+            [l_kMeas, obj.thetaMeas(1,2)] = Arm2D.singSegIK(...
+                obj.segPos2D(1:2,1),obj.thetaMeas(1,1), obj.segPos2D(1:2,2));
+             if (l_kMeas < obj.dims.kMin)
+             l_kMeas = abs(l_kMeas);
+             end
             
             if(obj.calibrated == false)
-                if( max(abs(obj.kMeas) > obj.dims.kThreshold) == 1 )                    
-                    fprintf('gripper not at home: '); 
-                    obj.kMeas
+                if( max(abs(l_kMeas) > obj.dims.kThreshold) == 1 )                    
+                    fprintf('gripper not at home!!: '); 
+                    l_kMeas
                     fprintf('\n');
                 else
                     obj.calibrated = true;
@@ -95,6 +98,7 @@ classdef Gripper2D <handle
                 end
             end
             
+            %obj.setMeasuredCurvatures(obj.kTarget);
             obj.setMeasuredCurvatures(l_kMeas-obj.kMeasInit);
             
         end

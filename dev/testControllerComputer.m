@@ -1,9 +1,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Figure %%%%%%%%%%%%%%%%%%%%%%%%
 xMax = -0.10;
-xMin = -0.20;
-yMax = 0.30;
-yMin = 0.20;
-expTime = 40;
+xMin = -0.25;
+yMax = 0.35;
+yMin = 0.12;
+expTime = 10;
 
 figure;
 hold on;
@@ -16,19 +16,11 @@ plot([xMin,xMax],[yMin,yMin], '-k');
 plot([xMin,xMax],[yMax,yMax], '-k');
 
 ac = ArmController2D(ExpTypes.PhysicalExperiment);
-try
-   ac.start;
+
+ac.start;
 
 %timeoutDlg(@input, expTime, 'Enter 1 to cancel:');
 pause(expTime);
 
 delete(ac);
-
-catch err
-
-   % Display any other errors as usual.
-      rethrow(err);
-
-end  % end try/catch
-
 

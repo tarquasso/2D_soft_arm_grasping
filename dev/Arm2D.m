@@ -129,15 +129,15 @@ classdef Arm2D < handle
             % Check #1 - are there enough segments and is the position dimension correct?
             
             % init thetaMeas and arcLenMeas!
-            obj.thetaMeas(1) = obj.dims.thetaStart;
+            obj.thetaMeas(1,1) = obj.dims.thetaStart;
             
             % Calculate the curvatures and angles using the 2 points method
             for s = 1:obj.dims.S
                 % Calculate properties of the current segment
-                [obj.kMeas(1,s), obj.thetaMeas(s+1)] = Arm2D.singSegIK(...
-                    obj.segPos2D(1:2,s),obj.thetaMeas(s), obj.segPos2D(1:2,s+1));
+                [obj.kMeas(1,s), obj.thetaMeas(1,s+1)] = Arm2D.singSegIK(...
+                    obj.segPos2D(1:2,s),obj.thetaMeas(1,s), obj.segPos2D(1:2,s+1));
                 obj.arcLenMeas(1,s) = wrapToPi(...
-                    obj.thetaMeas(s+1)-obj.thetaMeas(s)) / obj.kMeas(s);
+                    obj.thetaMeas(1,s+1)-obj.thetaMeas(1,s)) / obj.kMeas(s);
                 
                 % Check #2 - is the calculated length more than 20% different than the
                 % expected length?
@@ -156,20 +156,19 @@ classdef Arm2D < handle
                 else
                     obj.calibrated = true;
                     obj.kMeasInit = obj.kMeas;
-                    obj.thetaMeasInit = obj.thetaMeas;
+                    obj.thetaMeasInit = obj.thetaMeas;                   
                 end
             end
             
             obj.kMeas = obj.kMeas - obj.kMeasInit;
-            obj.thetaMeas = obj.thetaMeas - obj.thetaMeasInit;
-            obj.thetaMeas(1) = obj.dims.thetaStart;
+            %obj.thetaMeas = obj.thetaMeas - obj.thetaMeasInit;
+            %obj.thetaMeas(1) = obj.dims.thetaStart;
             %obj.setMeasuredCurvatures(l_kMeas);
             %obj.setMeasuredLengths(l_arcLenMeas);
             % HERE ADD THE GRIPPER ANALYSIS FOR s =
             % (obj.dims.S+1):(obj.dims.S+1+obj.gripper2D.dims.S)
             % FOR NOW HARDCODED /todo
-            
-            obj.gripper2D.calculateSegmentValues();          
+            obj.gripper2D.calculateSegmentValues(obj.thetaMeas(1,obj.dims.S+1));          
         end
         
         %Forward kinematic transformation of the 2D arm
