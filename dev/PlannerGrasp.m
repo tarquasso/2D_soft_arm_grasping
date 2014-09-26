@@ -59,7 +59,10 @@ classdef PlannerGrasp < handle
         trajectoryEndTime;
         waitTimeForSettle;
         kOff1;
-        waitTimeForGrasp
+        waitTimeForGrasp;
+        binTrajGenerated;
+        xBin;
+        yBin;
     end
     
     methods
@@ -75,8 +78,11 @@ classdef PlannerGrasp < handle
             obj.rotMovEpsilon = 7.5*(180/3.14159);
             obj.nMov = 1;
             obj.arcSpacePlanDone = false;
-            obj.moveTo =1;
+            obj.moveTo = 1;
             obj.kOff1 = 3;
+            obj.binTrajGenerated = 0;
+            obj.xBin = 0; 
+            obj.yBin = sum(obj.arm2D.dims.lengths);
             
             %Cartesian Planner
             obj.state = 1;
@@ -135,6 +141,8 @@ classdef PlannerGrasp < handle
                         obj.checkArmSettled();
                     case 5 % object is NOT grasped
                         obj.graspObject();
+                    case 6 % move object to bin
+                        obj.moveToBin();
                     otherwise
                         display('[PlannerGrasp] Plan fully executed');
                         result = 1;
@@ -146,6 +154,57 @@ classdef PlannerGrasp < handle
                 obj.arm2D.actuate();
             end
             
+            
+        end
+        
+        function moveToBin(obj)
+            % Check if object is at bin
+            [xTipCur, yTipCur, thetaTipCur] = ...
+                obj.arm2D.recursiveForwardKinematics(obj.arm2D.kMeas,...
+                obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
+            
+            if(  norm(([obj.xBin; obj.yBin]-[xTipCur; yTipCur]),2) <= obj.posMoveEpsilon )
+                
+                if( obj.binTrajGenerated == 0 )
+                    
+                    display('[ArcSpacePlanner] Moving to bin');
+                    
+                    %generate realizable trajectory
+                    l_kInitial = double(obj.arm2D.kMeas); % config traj start values
+                    % find k Target using IK
+                    l_thetaTarget = pi/2;
+                    l_kGuess = 0.01*ones(1, obj.arm2D.dims.S); %approx zeros curvatures
+                    [l_kTarget] = obj.arm2D.inverseKinematics(obj.xBin, obj.yBin, l_thetaTarget, l_kGuess);
+                    % request multiple configuration velocity trajs
+                    [obj.curvatureProfiles, obj.trajectoryEndTime ] = obj.trajGen.generateMultipleVelocityProfiles(obj, l_kInitial, l_kTarget );
+                    % store start and end values
+                    obj.kInit = l_kInitial;
+                    obj.kGoal = l_kTarget;
+                    
+                    obj.planTime = tic; % get current time
+                    obj.binTrajGenerated = 1;
+                end
+                
+                %generate intermediate k
+                [l_kIntermediate] = obj.trajGen.generateMultplePositionDeltas(obj.curvatureProfiles, toc(obj.planTime), obj.kInit);
+                %send intermediate k
+                obj.arm2D.setTargetCurvatures(l_kIntermediate);
+                % actuate the arm and the gripper
+                obj.arm2D.actuate();
+            else
+                %arrived at final bin
+                display('[ArcSpacePlanner] Object is at bin');
+                %send k to measured to stop arm
+                obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas);
+                %set gripper curvature to 0
+                obj.arm2D.gripper2D.setTargetCurvatures(0);
+                % actuate the arm and the gripper
+                obj.arm2D.actuate();
+                %set state of planner to step 7, which is to finish
+                obj.state = 7;
+                % get current time
+                obj.planTime = tic;
+            end
             
         end
         
@@ -227,40 +286,24 @@ classdef PlannerGrasp < handle
                     
                     if( obj.trajGenerated == 0 )
                         
-                    display(['Moving to arc:',num2str(obj.moveTo)]);
-                    
+                        display(['Moving to arc:',num2str(obj.moveTo)]);
+                        
                         %generate realizable trajectory
-                        l_kInitial = double(obj.arm2D.kMeas);
-                        l_kTarget = obj.kOptimal(obj.moveTo,:);
-                        l_vMax = 3*ones(1,6);
-                        l_aMax = 1*ones(1,6);
-                        
-                        [l_seg1CurvatureProfile, tf1] = obj.trajGen.generateVelocityProfile(l_kInitial(1), l_kTarget(1), l_vMax(1), l_aMax(1) );
-                        [l_seg2CurvatureProfile, tf2] = obj.trajGen.generateVelocityProfile(l_kInitial(2), l_kTarget(2), l_vMax(2), l_aMax(2) );
-                        [l_seg3CurvatureProfile, tf3] = obj.trajGen.generateVelocityProfile(l_kInitial(3), l_kTarget(3), l_vMax(3), l_aMax(3) );
-                        [l_seg4CurvatureProfile, tf4] = obj.trajGen.generateVelocityProfile(l_kInitial(4), l_kTarget(4), l_vMax(4), l_aMax(4) );
-                        [l_seg5CurvatureProfile, tf5] = obj.trajGen.generateVelocityProfile(l_kInitial(5), l_kTarget(5), l_vMax(5), l_aMax(5) );
-                        [l_seg6CurvatureProfile, tf6] = obj.trajGen.generateVelocityProfile(l_kInitial(6), l_kTarget(6), l_vMax(6), l_aMax(6) );
-                        
+                        l_kInitial = double(obj.arm2D.kMeas); % config traj start values
+                        l_kTarget = obj.kOptimal(obj.moveTo,:); % config traj end values
+                        % request multiple configuration velocity trajs
+                        [obj.curvatureProfiles, obj.trajectoryEndTime ] = obj.trajGen.generateMultipleVelocityProfiles(obj, l_kInitial, l_kTarget );
+                        % store start and end values
                         obj.kInit = l_kInitial;
                         obj.kGoal = l_kTarget;
-                        obj.curvatureProfiles = [l_seg1CurvatureProfile, l_seg2CurvatureProfile, l_seg3CurvatureProfile...
-                            l_seg4CurvatureProfile, l_seg5CurvatureProfile, l_seg6CurvatureProfile];
                         
-                        obj.trajectoryEndTime = max([tf1, tf2, tf3, tf4, tf5, tf6]);
                         obj.planTime = tic; % get current time
                         obj.trajGenerated = 1;
                     end
                     
+                    %generate intermediate k
+                    [l_kIntermediate] = obj.trajGen.generateMultplePositionDeltas(obj.curvatureProfiles, toc(obj.planTime), obj.kInit);
                     %send intermediate k
-                    l_kIntermediate = zeros(1,6);
-                    l_kIntermediate(1) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(1), toc(obj.planTime), obj.kInit(1));
-                    l_kIntermediate(2) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(2), toc(obj.planTime), obj.kInit(2));
-                    l_kIntermediate(3) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(3), toc(obj.planTime), obj.kInit(3));
-                    l_kIntermediate(4) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(4), toc(obj.planTime), obj.kInit(4));
-                    l_kIntermediate(5) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(5), toc(obj.planTime), obj.kInit(5));
-                    l_kIntermediate(6) = obj.trajGen.getPositionDelta(obj.curvatureProfiles(6), toc(obj.planTime), obj.kInit(6));
-                    
                     obj.arm2D.setTargetCurvatures(l_kIntermediate);
                     %set gripper curvature to 0
                     obj.arm2D.gripper2D.setTargetCurvatures(0);
