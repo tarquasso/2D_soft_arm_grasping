@@ -21,14 +21,15 @@ classdef Gripper2D <handle
             %Define Gripper dimensions
             obj.dims = struct();
             obj.dims.S = 1;      % is the total number of arm segments
-            obj.dims.kMin = 0;     % minimum allowable curvature
+            obj.dims.kMin = -5;     % minimum allowable curvature
             obj.dims.kMax = 40;      % maximum allowable curvature
             obj.dims.offCenter = 0.007; %gripper offset distance in meters
+            obj.dims.kThreshold = 4;
             obj.calibrated = false;
             %Initialize with some values  
             obj.setMeasuredLengths(4.0*0.0254);
-            obj.setMeasuredCurvatures(1.0);
-            obj.setTargetCurvatures(1.0);
+            obj.setMeasuredCurvatures(0.0);
+            obj.setTargetCurvatures(0.0);
             obj.kMeasInit = 1.0;
         end
         %Destructor
@@ -79,13 +80,22 @@ classdef Gripper2D <handle
         function calculateSegmentValues( obj)
             [l_kMeas, l_thetaMeas] = Arm2D.singSegIK(...
                 obj.segPos2D(1:2,1),pi/2, obj.segPos2D(1:2,2));
-                        
-            if(obj.calibrated == false)
-                obj.calibrated = true;
-                obj.kMeasInit = l_kMeas;
+            if (l_kMeas < obj.dims.kMin)
+            l_kMeas = abs(l_kMeas);
             end
-%             
-           %obj.setMeasuredCurvatures(l_kMeas(1,1));
+            
+            if(obj.calibrated == false)
+                if( max(abs(obj.kMeas) > obj.dims.kThreshold) == 1 )                    
+                    fprintf('gripper not at home: '); 
+                    obj.kMeas
+                    fprintf('\n');
+                else
+                    obj.calibrated = true;
+                    obj.kMeasInit = l_kMeas;
+                end
+            end
+            
+            obj.setMeasuredCurvatures(l_kMeas-obj.kMeasInit);
             
         end
     end

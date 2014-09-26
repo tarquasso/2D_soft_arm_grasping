@@ -11,6 +11,7 @@ classdef PlannerGrasp < handle
     properties(SetAccess=private,GetAccess=public)
         plannerFree;
         state;
+        objInRightPosition;
         previousObjPosition;
         changeInObjPositionThreshold;
         timeAtObjPosition;
@@ -79,6 +80,7 @@ classdef PlannerGrasp < handle
             
             %Cartesian Planner
             obj.state = 1;
+            obj.objInRightPosition = false;
             obj.previousObjPosition = [0; 0];
             obj.changeInObjPositionThreshold = 0.005; % half of a centimeter
             obj.timeAtObjPosition = 0.0;
@@ -134,7 +136,7 @@ classdef PlannerGrasp < handle
                     case 5 % object is NOT grasped
                         obj.graspObject();
                     otherwise
-                        display('plan executed');
+                        display('[PlannerGrasp] Plan fully executed');
                         result = 1;
                         return;
                        
@@ -222,10 +224,11 @@ classdef PlannerGrasp < handle
                 
                 % send target curvatures until final pose is achieved
                 if(obj.moveTo <= obj.nMov)
-                    obj.moveTo
-                    display('[ArcSpacePlanner] Arm is moving to next arc');
                     
                     if( obj.trajGenerated == 0 )
+                        
+                    display(['Moving to arc:',num2str(obj.moveTo)]);
+                    
                         %generate realizable trajectory
                         l_kInitial = double(obj.arm2D.kMeas);
                         l_kTarget = obj.kOptimal(obj.moveTo,:);
@@ -279,17 +282,17 @@ classdef PlannerGrasp < handle
         end
         %Determine whether or not arm has settled before object
         function checkArmSettled(obj)
-            display('[ArcSpacePlanner] Waiting for arm to settle');
+            
             % Target = Measured for arm and gripper
             
             obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas); %set target to be equal to be the measured value
-            obj.arm2D.gripper2D.setTargetCurvatures(0.0); %set target to be equal to be the measured value
+            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas); %set target to be equal to be the measured value
             obj.arm2D.actuate();
             
             if(obj.startedToSettle==false)
+                display(['[ArcSpacePlanner] Waiting ',num2str(obj.waitTimeForSettle),' s for arm to settle']);
                 obj.planTime = tic;
                 obj.startedToSettle = true;
-
             else
                 if(toc(obj.planTime) > obj.waitTimeForSettle )
                     obj.startedToSettle = false;
@@ -381,9 +384,11 @@ classdef PlannerGrasp < handle
         %Determine whether or not and object has been placed
         function checkObjPlacement(obj)
             
+            persistent counter;
+            
             % Target = Measured for arm and gripper
             obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas); %set target to be equal to be the measured value
-            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas); %set target to be equal to be the measured value
+            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas); %set target to be equal to 0
             
             l_currentObjPosition = [obj.roundObject.x; obj.roundObject.y];
             
@@ -392,14 +397,26 @@ classdef PlannerGrasp < handle
                 l_changeInObjPosition = norm( l_currentObjPosition - obj.previousObjPosition, 2);
                 
                 if( l_changeInObjPosition <= obj.changeInObjPositionThreshold )
-                    if( obj.timeAtObjPosition >= obj.timeAtObjPositionThreshold ) % has it been engough time?
+                    if(obj.objInRightPosition == false)
+                        fprintf('Waiting for object to settle\n');
+                        obj.objInRightPosition = true;
+                        counter = 0;
+                    end
+                    if( obj.timeAtObjPosition >= obj.timeAtObjPositionThreshold ) % has it been enough time?
+                        fprintf('\n');
                         display('Object is placed')
                         obj.state = 2;
                     else
-                        display('Waiting for object to settle')
+                        fprintf('.');
+                        if (counter > 30)
+                            fprintf('\n');
+                            counter = 0;
+                        end
+                        counter = counter +1;
                     end
                     obj.timeAtObjPosition = obj.timeAtObjPosition + toc(obj.planTime);
                 else
+                    obj.objInRightPosition = false;
                     obj.timeAtObjPosition = 0;
                     display('Object location is changing')
                 end

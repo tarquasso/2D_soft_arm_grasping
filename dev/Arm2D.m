@@ -41,9 +41,11 @@ classdef Arm2D < handle
             obj.dims.kMax = [13.8, 10.0, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
             obj.dims.thetaStart = pi/2;   % is the current/measured initial orientation of the first segment
             obj.dims.lengths = repmat(2.47*0.0254,1,obj.dims.S); %[m]
-        
+            obj.dims.kThreshold = 4;
             
             k_init = 0.1*randn(1, 6);
+            obj.kMeasInit = k_init;
+            obj.thetaMeasInit = zeros(1,obj.dims.S +1);
             obj.setMeasuredLengths(2.47*0.0254*ones(1, obj.dims.S));
             obj.setMeasuredCurvatures(k_init);
             obj.kIntermediate = k_init;
@@ -145,9 +147,16 @@ classdef Arm2D < handle
             end
             
             if(obj.calibrated == false)
-                obj.calibrated = true;
-                obj.kMeasInit = obj.kMeas;
-                obj.thetaMeasInit = obj.thetaMeas;
+                if( max(abs(obj.kMeas) > obj.dims.kThreshold) == 1 )
+                    
+                    fprintf('not at home: '); 
+                    obj.kMeas
+                    fprintf('\n');
+                else
+                    obj.calibrated = true;
+                    obj.kMeasInit = obj.kMeas;
+                    obj.thetaMeasInit = obj.thetaMeas;
+                end
             end
             
             obj.kMeas = obj.kMeas - obj.kMeasInit;

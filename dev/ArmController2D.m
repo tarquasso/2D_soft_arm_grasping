@@ -54,7 +54,11 @@ classdef ArmController2D < handle
         end
         function sensorMeasurementsDone(obj)
             if(obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Simulation)
-                l_result = obj.plannerGrasp.plan();
+                if(obj.arm2D.calibrated == true && obj.arm2D.gripper2D.calibrated == true) 
+                    l_result = obj.plannerGrasp.plan();
+                else
+                    l_result = 0;
+                end
                 
                 if( isempty(obj.armPlotHandleTarget) )
                     obj.armPlotHandleTarget = obj.arm2D.plotArmTargetToHandle(obj.arm2D.kTarget);
