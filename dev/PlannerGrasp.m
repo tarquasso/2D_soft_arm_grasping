@@ -6,6 +6,7 @@ classdef PlannerGrasp < handle
         framePeriod;
         plannerType;
         trajGen;
+        shapeHistory;
     end
     
     properties(SetAccess=private,GetAccess=public)
@@ -63,6 +64,7 @@ classdef PlannerGrasp < handle
         binTrajGenerated;
         xBin;
         yBin;
+        stateTimeInit;
     end
     
     methods
@@ -71,7 +73,11 @@ classdef PlannerGrasp < handle
             obj.arm2D =  arm2DHand;
             obj.roundObject = roundObjectHand;
             obj.trajGen = trajGenHand;
+            S = obj.arm2D.dims.S; 
+            N = 60*100; % max data points to log
+            obj.shapeHistory = ShapeHistory(S, N);
             obj.framePeriod = framePeriod;
+            
             %ArcSpace Planner
             obj.transitDistInc = 0.03;
             obj.posMoveEpsilon = 0.01;%working: 0.02;
@@ -83,6 +89,7 @@ classdef PlannerGrasp < handle
             obj.binTrajGenerated = 0;
             obj.xBin = 0; 
             obj.yBin = sum(obj.arm2D.dims.lengths);
+            obj.stateTimeInit;
             
             %Cartesian Planner
             obj.state = 1;
@@ -118,6 +125,14 @@ classdef PlannerGrasp < handle
         end
         %Destructor
         function delete(obj)
+            % Save the shape history
+            filename = sprintf('data\\%s.mat', datestr(now));
+            filename = strrep(filename,':','_');
+            History = obj.arm2D.shapeHistory;
+            save(filename, 'History');
+            
+            %delete shape history
+            obj.shapeHistory.delete();
         end
         %Plan dispatcher
         function result = plan(obj)
@@ -155,6 +170,17 @@ classdef PlannerGrasp < handle
             end
             
             
+        end
+        
+        function logData(obj)
+            if( isempty( obj.stateTimeInit ) )
+                obj.stateTimeInit = tic;
+            end
+            l_N = obj.arm2D.dims.S+1;
+            l_time = toc(obj.stateTimeInit);
+            obj.shapeHistory.add(l_time, obj.arm2D.kMeas, obj.arm2D.arcLenMeas, ...
+                obj.arm2D.kTarget, [obj.arm2D.segPos2D(1,l_N), obj.arm2D.segPos2D(2,l_N)], ...
+                [obj.roundObject.x, obj.roundObject.y]);
         end
         
         function moveToBin(obj)
