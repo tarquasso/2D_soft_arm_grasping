@@ -10,10 +10,11 @@ classdef ShapeHistory < handle
         i   % Current index
         
         timestamps      % Timestamps of the state
-        start_pts       % Positions of the start point
-        shapes          % Shapes of the segments
-        target_curvatures          % filtered curvatures
-        cmds % commands sent to cc
+        kMeas
+        arcLenMeas
+        kTarget
+        tipPosition
+        objectPosition
     end
     
     methods
@@ -23,20 +24,24 @@ classdef ShapeHistory < handle
             obj.N = N;
             obj.i = 1;
             
-            obj.timestamps = NaN(1,N);
-            obj.shapes = NaN(6,S,N);
-            obj.start_pts = NaN(2,N);
-            obj.target_curvatures = NaN(6,N);
+            obj.timestamps = NaN(N,1);
+            obj.kMeas = NaN(N,S);
+            obj.arcLenMeas = NaN(N,S);
+            obj.kTarget = NaN(N,S);
+            obj.tipPosition = NaN(N,3);
+            obj.objectPosition = NaN(N,2);
+            
         end
         
-        function add(obj, timestamp, spos, segments, target, cmd)
+        function add(obj, timestamp, kMeas, arcLenMeas, kTarget, tipPosition, objectPosition)
             % Add a new measurement
-            obj.timestamps(obj.i) = timestamp;
-            obj.start_pts(:,obj.i) = spos;
-            obj.shapes(:,:,obj.i) = segments;
-            obj.target_curvatures(:, obj.i) = target;
-            obj.cmds(obj.i, :) = cmd;
-            
+            obj.timestamps(obj.i, 1) = timestamp;
+            obj.kMeas(obj.i, :) = kMeas;
+            obj.arcLenMeas(obj.i, :) = arcLenMeas;
+            obj.kTarget(obj.i, :) = kTarget;
+            obj.tipPosition(obj.i, :) = tipPosition;
+            obj.objectPosition(obj.i, :) = objectPosition;
+
             % Update the count
             obj.i = mod(obj.i + 1, obj.N);
             if obj.i == 0
@@ -44,30 +49,6 @@ classdef ShapeHistory < handle
             end
         end
         
-        function timestamp = timestamp(obj, i)
-            % Returns start points indexing from the end
-            timestamp = obj.timestamps(obj.i - i);
-        end
-        
-        function st_point = st_point(obj, i)
-            % Returns start points indexing from the end
-            st_point = obj.st_points(obj.i - i);
-        end
-        
-        function shape = shape(obj, i)
-            % Returns start points indexing from the end
-            shape = obj.shapes(obj.i - i);
-        end
-        
-        function target_curvature = target_curvature(obj, i)
-            % Returns start points indexing from the end
-            target_curvature  = obj.target_curvatures(obj.i - i);
-        end
-        
-        function cmd = cmd(obj, i)
-            % Returns start points indexing from the end
-            cmd  = obj.cmds(obj.i - i);
-        end
         %Destructor
         function delete(obj)
         end
