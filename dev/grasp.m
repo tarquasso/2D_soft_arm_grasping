@@ -63,6 +63,10 @@ while(toc(expTimer) < expTime || broken ==false)
 end% <----- Total experiment time
 stop(t)
 delete(t)
+delete(PLANNER)
+delete(TRAJ)
+delete(OBJECT)
+delete(ARM);
 
     function TimerFunction
         
