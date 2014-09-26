@@ -38,7 +38,7 @@ classdef Arm2D < handle
             obj.dims = struct();
             obj.dims.S = 6;          % is the total number of arm segments
             obj.dims.kMin = [-11.0, -18.5, -11.0, -14.1, -11.8, -17.4];     % minimum allowable curvature
-            obj.dims.kMax = [13.8, 10.0, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
+            obj.dims.kMax = [13.8, 11.0, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
             obj.dims.thetaStart = pi/2;   % is the current/measured initial orientation of the first segment
             obj.dims.lengths = repmat(2.47*0.0254,1,obj.dims.S); %[m]
             obj.dims.kThreshold = 4;
@@ -83,11 +83,12 @@ classdef Arm2D < handle
                 if( strcmp(above_max, 'false') )
                     obj.kTarget = val;
                 else
-                    error('An element of k exceeds allowable limit')
+                    display('ERROR: [ARM2D-setTargetCurvatures] An element of k exceeds allowable limit');
+                    display(num2str(val));                   
                 end
                 
             else
-                error('The size of k does not match the arm.')
+                display('ERROR: [ARM2D-setTargetCurvatures] The size of k does not match the arm.');
             end
         end
         
