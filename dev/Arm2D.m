@@ -30,7 +30,7 @@ classdef Arm2D < handle
                 if(isa(expType,'ExpTypes'))
                     %obj.expType = expType;
                 else
-                    error('wrong type');
+                    display('ERROR: [ARM2D-Constructor] wrong type');
                 end
             end
             
@@ -38,11 +38,11 @@ classdef Arm2D < handle
             obj.dims = struct();
             obj.dims.S = 6;          % is the total number of arm segments
             obj.dims.kMin = [-11.0, -18.5, -11.0, -14.1, -11.8, -17.4];     % minimum allowable curvature
-            obj.dims.kMax = [13.8, 11.0, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
+            obj.dims.kMax = [13.8, 11, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
             obj.dims.thetaStart = pi/2;   % is the current/measured initial orientation of the first segment
             obj.dims.lengths = repmat(2.47*0.0254,1,obj.dims.S); %[m]
-            obj.dims.kThreshold = 4;
-            
+            obj.dims.kThreshold = 5;
+            obj.dims.kEpsilon = 0.5;
             k_init = 0.1*randn(1, 6);
             obj.kMeasInit = k_init;
             obj.thetaMeasInit = zeros(1,obj.dims.S +1);
@@ -75,7 +75,7 @@ classdef Arm2D < handle
                 above_max = 'false';
                 
                 for i = 1:obj.dims.S
-                    if( (val(i) < obj.dims.kMin(i)) || (val(i) > obj.dims.kMax(i)) )
+                    if( (val(i) < obj.dims.kMin(i)-obj.dims.kEpsilon) || (val(i) > obj.dims.kMax(i)+obj.dims.kEpsilon) )
                         above_max = 'true';
                     end
                 end
@@ -107,16 +107,26 @@ classdef Arm2D < handle
             if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 obj.kMeas = val;
             else
-                error('The size of measured k does not match the arm.');
+                display('ERROR: [ARM2D-setMeasuredCurvatures] The size of measured k does not match the arm.');
             end
         end
+        %Set Measured thetas of the 2D arm
+        function setMeasuredTheta(obj, val)
+            l_valSize = size(val);
+            if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
+                obj.thetaMeas = val;
+            else
+                display('ERROR: [ARM2D-setMeasuredTheta] The size of measured theta does not match the arm.');
+            end
+        end
+        
         %Set Measured Lengths of the 2D arm
         function setMeasuredLengths(obj, val)
             l_valSize = size(val);
             if( l_valSize(2) == obj.dims.S && l_valSize(1) == 1)
                 obj.arcLenMeas = val;
             else
-                error('The size of measured arcLenMeas does not match the arm.');
+                display('ERROR: [ARM2D-setMeasuredLengths] The size of measured arcLenMeas does not match the arm.');
             end
         end
         
@@ -129,21 +139,30 @@ classdef Arm2D < handle
             % Check #1 - are there enough segments and is the position dimension correct?
             
             % init thetaMeas and arcLenMeas!
+            
             obj.thetaMeas(1,1) = obj.dims.thetaStart;
+            l_thetaMeas = zeros(1,obj.dims.S+1);
+            l_thetaMeas(1,1) = obj.dims.thetaStart;
+            l_kMeas = 0.01*ones(1,obj.dims.S);
+            l_arcLenMeas = obj.dims.lengths;
             
             % Calculate the curvatures and angles using the 2 points method
             for s = 1:obj.dims.S
                 % Calculate properties of the current segment
-                [obj.kMeas(1,s), obj.thetaMeas(1,s+1)] = Arm2D.singSegIK(...
-                    obj.segPos2D(1:2,s),obj.thetaMeas(1,s), obj.segPos2D(1:2,s+1));
-                obj.arcLenMeas(1,s) = wrapToPi(...
-                    obj.thetaMeas(1,s+1)-obj.thetaMeas(1,s)) / obj.kMeas(s);
+                [l_kMeas(1,s), l_thetaMeas(1,s+1)] = Arm2D.singSegIK(...
+                    obj.segPos2D(1:2,s),l_thetaMeas(1,s), obj.segPos2D(1:2,s+1));
+                l_arcLenMeas(1,s) = wrapToPi(...
+                    l_thetaMeas(1,s+1)-l_thetaMeas(1,s)) / l_kMeas(s);
                 
                 % Check #2 - is the calculated length more than 20% different than the
                 % expected length?
-                l_lengthDiff = (obj.arcLenMeas(1,s)-obj.dims.lengths(1,s))/obj.dims.lengths(1,s);
-                if (abs(l_lengthDiff) > 0.20)
-                    error('bad arclength for Segment %i: lengt: %f',s,l_lengthDiff);
+                l_lengthDiff = (l_arcLenMeas(1,s)-obj.dims.lengths(1,s))/obj.dims.lengths(1,s);
+                if (abs(l_lengthDiff) > 0.25)
+                    fprintf('[ARM2D-calculateSegmentValues] bad arclength for Segment %i: length: %f\n',s,l_lengthDiff);
+                else
+                    obj.kMeas(1,s) = l_kMeas(1,s);
+                    obj.thetaMeas(1,s+1) = l_thetaMeas(1,s+1);
+                    obj.arcLenMeas(1,s) = l_arcLenMeas(1,s);
                 end
             end
             
@@ -184,7 +203,7 @@ classdef Arm2D < handle
             l_valSize = length(k);
             
             if( i > l_valSize )
-                error('The size of k does not match the segment of interest.');
+                display('ERROR: [ARM2D-recursiveForwardKinematics] The size of k does not match the segment of interest.');
             end
             
             l_thetaStart = obj.dims.thetaStart;
@@ -216,7 +235,7 @@ classdef Arm2D < handle
             ub = obj.dims.kMax;
             
             l_optTime = tic;
-            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off');
+            options = optimoptions(@fmincon,'Algorithm', 'sqp', 'TolCon',2e-3, 'TolX', 1e-6,'GradObj','on', 'GradConstr', 'off','Display','off');
             kTarget = fmincon(@cost,kGuess,A,b,Aeq,beq,lb,ub,@noncon,options);
             toc(l_optTime)
             

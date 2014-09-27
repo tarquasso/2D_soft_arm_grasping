@@ -22,9 +22,8 @@ classdef CurvatureController < handle
                     error('wrong type');
                 end
             end
-            if (obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Tuning )
             obj.vectorLength = vecLength;
-            
+            if (obj.expType == ExpTypes.PhysicalExperiment || obj.expType == ExpTypes.Tuning )           
                 % Establish the serial port communication
                 display('[CurvatureController] Opening Serial Port on COM1')
                 obj.serialPort = serial('COM1');
@@ -71,6 +70,8 @@ classdef CurvatureController < handle
             K = arrayfun(@(t,m) CurvatureController.select_curvature(t,m), ...
                 target, measured);
             E = c * (target-measured);
+            %TODO: adjust for the l;arger k of the gripper
+            E(1,end)= 127/50*(target(1,end)-25.0); %this is a hack for now
             command = [K; E];
             
             % Expand the command packed along its rows. This is the format which is

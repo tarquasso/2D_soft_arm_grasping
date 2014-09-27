@@ -3,7 +3,7 @@ xMax = -0.10;
 xMin = -0.25;
 yMax = 0.35;
 yMin = 0.12;
-expTime = 10;
+expTime = 58;
 
 figure;
 hold on;
@@ -21,6 +21,6 @@ ac.start;
 
 %timeoutDlg(@input, expTime, 'Enter 1 to cancel:');
 pause(expTime);
-
-delete(ac);
-
+if(ac.isvalid ==1)
+    delete(ac);
+end
