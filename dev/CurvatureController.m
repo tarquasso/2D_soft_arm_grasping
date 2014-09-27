@@ -70,8 +70,8 @@ classdef CurvatureController < handle
             K = arrayfun(@(t,m) CurvatureController.select_curvature(t,m), ...
                 target, measured);
             E = c * (target-measured);
-            %adjust for the l;arger k of the gripper
-            E(1,end)= 20/40*E(1,end);
+            %TODO: adjust for the l;arger k of the gripper
+            E(1,end)= 127/50*(target(1,end)-25.0); %this is a hack for now
             command = [K; E];
             
             % Expand the command packed along its rows. This is the format which is

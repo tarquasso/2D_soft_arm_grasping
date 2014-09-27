@@ -15,6 +15,7 @@ classdef ShapeHistory < handle
         kTarget
         tipPosition
         objectPosition
+        gripperkTarget
     end
     
     methods
@@ -30,10 +31,11 @@ classdef ShapeHistory < handle
             obj.kTarget = NaN(N,S);
             obj.tipPosition = NaN(N,3);
             obj.objectPosition = NaN(N,2);
+            obj.gripperkTarget = NaN(N,1);
             
         end
         
-        function add(obj, timestamp, kMeas, arcLenMeas, kTarget, tipPosition, objectPosition)
+        function add(obj, timestamp, kMeas, arcLenMeas, kTarget, tipPosition, objectPosition, gripperkTarget)
             % Add a new measurement
             obj.timestamps(obj.i, 1) = timestamp;
             obj.kMeas(obj.i, :) = kMeas;
@@ -41,6 +43,7 @@ classdef ShapeHistory < handle
             obj.kTarget(obj.i, :) = kTarget;
             obj.tipPosition(obj.i, :) = tipPosition;
             obj.objectPosition(obj.i, :) = objectPosition;
+            obj.gripperkTarget(obj.i, 1) = gripperkTarget;
 
             % Update the count
             obj.i = mod(obj.i + 1, obj.N);

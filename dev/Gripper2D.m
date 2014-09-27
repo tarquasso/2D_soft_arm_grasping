@@ -23,13 +23,14 @@ classdef Gripper2D <handle
             obj.dims = struct();
             obj.dims.S = 1;      % is the total number of arm segments
             obj.dims.kMin = -10;     % minimum allowable curvature
-            obj.dims.kMax = 40;      % maximum allowable curvature
+            obj.dims.kMax = 50;      % maximum allowable curvature
             obj.dims.offCenter = 0.007; %gripper offset distance in meters
-            obj.dims.kThreshold = 5;
-            obj.dims.kEpsilon = 1;
+            obj.dims.kThreshold = 8;
+            obj.dims.kEpsilon = 1;           
+            obj.dims.length=0.106;
             obj.calibrated = false;
             %Initialize with some values  
-            obj.setMeasuredLengths(4.0*0.0254);
+            obj.setMeasuredLengths(obj.dims.length);
             obj.setMeasuredCurvatures(0.01);
             obj.setTargetCurvatures(0.01);
             obj.kMeasInit = 1.0;
@@ -82,25 +83,40 @@ classdef Gripper2D <handle
         
         function calculateSegmentValues( obj, thetaMeasStart)
             obj.thetaMeas(1,1) = thetaMeasStart;
-            [l_kMeas, obj.thetaMeas(1,2)] = gripper2D.singSegIK(...
-                obj.segPos2D(1:2,1),obj.thetaMeas(1,1), obj.segPos2D(1:2,2));
-             if (l_kMeas < obj.dims.kMin)
-             l_kMeas = abs(l_kMeas);
-             end
+            l_thetaMeas = zeros(1,2);
+            l_thetaMeas(1,1) = thetaMeasStart;
             
+            [l_kMeas, l_thetaMeas(1,2)] = Gripper2D.singSegIK(...
+                obj.segPos2D(1:2,1),l_thetaMeas(1,1), obj.segPos2D(1:2,2));
+%               if (l_kMeas < obj.dims.kMin)
+%               l_kMeas = abs(l_kMeas);
+%               end
+            l_arcLenMeas = wrapToPi(l_thetaMeas(1,2)-l_thetaMeas(1,1)) / l_kMeas;
+            
+            l_lengthDiff = (l_arcLenMeas-obj.dims.length)/obj.dims.length;
+                if (abs(l_lengthDiff) > 0.25)
+                    %TODO: debug IK
+                    %fprintf('[GRIPPER2D-calculateSegmentValues] bad arclength for Gripper - length: %f\n',l_lengthDiff);
+                    obj.kMeas = obj.dims.kMax;
+                else
+                    obj.kMeas = l_kMeas;
+                    obj.thetaMeas(1,2) = l_thetaMeas(1,2);
+                    obj.arcLenMeas = l_arcLenMeas;                              
+                end
+             
             if(obj.calibrated == false)
-                if( max(abs(l_kMeas) > obj.dims.kThreshold) == 1 )                    
+                if( max(abs(obj.kMeas) > obj.dims.kThreshold) == 1 )                    
                     fprintf('gripper not at home!!: '); 
-                    l_kMeas
+                    obj.kMeas
                     fprintf('\n');
                 else
                     obj.calibrated = true;
-                    obj.kMeasInit = l_kMeas;
+                    obj.kMeasInit = obj.kMeas;
                 end
             end
             
             %obj.setMeasuredCurvatures(obj.kTarget);
-            obj.setMeasuredCurvatures(l_kMeas-obj.kMeasInit);
+            obj.setMeasuredCurvatures(obj.kMeas-obj.kMeasInit);
             
         end
     end
@@ -167,9 +183,9 @@ classdef Gripper2D <handle
             % End rotation
             erot = atan2(out_vector(2), out_vector(1));
             
-            if(out_vector(2) < 0.0 && out_vector(1) < 0.0 )
-                erot = pi + (pi + erot);
-            end
+%             if(out_vector(2) < 0.0 && out_vector(1) < 0.0 )
+%                 erot = pi + (pi + erot);
+%             end
         end
     end
 end

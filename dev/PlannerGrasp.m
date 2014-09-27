@@ -88,7 +88,7 @@ classdef PlannerGrasp < handle
             obj.moveTo = 1;
             obj.kOff1 = 3;
             obj.binTrajGenerated = 0;
-            obj.xBin = 0;
+            obj.xBin = 0.01;
             obj.yBin = sum(obj.arm2D.dims.lengths);
             obj.stateTimeInit;
             
@@ -187,12 +187,15 @@ classdef PlannerGrasp < handle
             l_time = toc(obj.stateTimeInit);
             obj.shapeHistory.add(l_time, obj.arm2D.kMeas, obj.arm2D.arcLenMeas, ...
                 obj.arm2D.kTarget, [obj.arm2D.segPos2D(1,l_N+1), obj.arm2D.segPos2D(2,l_N+1), obj.arm2D.thetaMeas(1, l_N)], ...
-                [obj.roundObject.x, obj.roundObject.y]);
+                [obj.roundObject.x, obj.roundObject.y], obj.arm2D.gripper2D.kTarget);
         end
         
         function moveToBin(obj)
+            [l_kTarget] = 0.1*ones(1,6);
+            [obj.xBin, obj.yBin, ~] = obj.arm2D.recursiveForwardKinematics(l_kTarget,...
+                obj.arm2D.dims.S, obj.arm2D.dims.lengths(obj.arm2D.dims.S));
             % Check if object is at bin
-            [xTipCur, yTipCur, thetaTipCur] = ...
+            [xTipCur, yTipCur, ~] = ...
                 obj.arm2D.recursiveForwardKinematics(obj.arm2D.kMeas,...
                 obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
             
@@ -207,9 +210,13 @@ classdef PlannerGrasp < handle
                     % find k Target using IK
                     l_thetaTarget = pi/2;
                     l_kGuess = 0.01*ones(1, obj.arm2D.dims.S); %approx zeros curvatures
-                    [l_kTarget] = obj.arm2D.inverseKinematics(obj.xBin, obj.yBin, l_thetaTarget, l_kGuess);
+                     %obj.arm2D.inverseKinematics(obj.xBin, obj.yBin, l_thetaTarget, l_kGuess);
                     % request multiple configuration velocity trajs
-                    [obj.curvatureProfiles, obj.trajectoryEndTime ] = obj.trajGen.generateMultipleVelocityProfiles(l_kInitial, l_kTarget );
+                    l_vMax = 0.75*ones(1,6);
+                    l_aMax = 0.25*ones(1,6);
+                    
+                    [obj.curvatureProfiles, obj.trajectoryEndTime ] = ...
+                        obj.trajGen.generateMultipleVelocityProfiles(l_kInitial, l_kTarget,l_vMax,l_aMax );
                     % store start and end values
                     obj.kInit = l_kInitial;
                     obj.kGoal = l_kTarget;
@@ -222,6 +229,8 @@ classdef PlannerGrasp < handle
                 [l_kIntermediate] = obj.trajGen.generateMultiplePositionDeltas(obj.curvatureProfiles, toc(obj.planTime), obj.kInit);
                 %send intermediate k
                 obj.arm2D.setTargetCurvatures(l_kIntermediate);
+                obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.dims.kMax);
+                
                 % actuate the arm and the gripper
                 obj.arm2D.actuate();
             else
@@ -230,7 +239,7 @@ classdef PlannerGrasp < handle
                 %send k to measured to stop arm
                 obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas);
                 %set gripper curvature to 0
-                obj.arm2D.gripper2D.setTargetCurvatures(0.01);
+                obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.dims.kMax);
                 % actuate the arm and the gripper
                 obj.arm2D.actuate();
                 %set state of planner to step 7, which is to finish
@@ -325,7 +334,10 @@ classdef PlannerGrasp < handle
                         l_kInitial = double(obj.arm2D.kMeas); % config traj start values
                         l_kTarget = obj.kOptimal(obj.moveTo,:); % config traj end values
                         % request multiple configuration velocity trajs
-                        [obj.curvatureProfiles, obj.trajectoryEndTime ] = obj.trajGen.generateMultipleVelocityProfiles(l_kInitial, l_kTarget );
+                        l_vMax = 1.5*ones(1,6);
+                        l_aMax = 0.5*ones(1,6);                   
+                        [obj.curvatureProfiles, obj.trajectoryEndTime ] = ...
+                            obj.trajGen.generateMultipleVelocityProfiles(l_kInitial, l_kTarget,l_vMax,l_aMax );
                         % store start and end values
                         obj.kInit = l_kInitial;
                         obj.kGoal = l_kTarget;
@@ -339,7 +351,7 @@ classdef PlannerGrasp < handle
                     %send intermediate k
                     obj.arm2D.setTargetCurvatures(l_kIntermediate);
                     %set gripper curvature to 0
-                    obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas);
+                    obj.arm2D.gripper2D.setTargetCurvatures(0.01);
                     % actuate the arm and the gripper
                     obj.arm2D.actuate();
                 else % obj.moveTo > obj.nMov
@@ -431,8 +443,8 @@ classdef PlannerGrasp < handle
                 % tip position
                 [xTipCurrent, yTipCurrent, thetaTipCurrent] = obj.arm2D.recursiveForwardKinematics(k, l_i, l_s);
                 
-                xToolCurent = xTipCurrent + obj.roundObject.r*cos(thetaTipCurrent);
-                yToolCurent = yTipCurrent + obj.roundObject.r*sin(thetaTipCurrent);
+                xToolCurent = xTipCurrent + (obj.roundObject.r+0.006)*cos(thetaTipCurrent)+(0.007)*cos(thetaTipCurrent+pi/2);
+                yToolCurent = yTipCurrent + (obj.roundObject.r+0.006)*sin(thetaTipCurrent)+(0.007)*sin(thetaTipCurrent+pi/2);
                 
                 ceq(1) = xToolCurent- xTarget;
                 ceq(2) = yToolCurent - yTarget;
@@ -464,7 +476,7 @@ classdef PlannerGrasp < handle
             
             % Target = Measured for arm and gripper
             obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas); %set target to be equal to be the measured value
-            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas); %set target to be equal to 0
+            obj.arm2D.gripper2D.setTargetCurvatures(0.01); %set target to be equal to 0
             
             l_currentObjPosition = [obj.roundObject.x; obj.roundObject.y];
             
@@ -638,8 +650,8 @@ classdef PlannerGrasp < handle
         %Determine whether or not arm has settled at bin
         function checkArmSettledAtBin(obj)          
             % Target = Measured for arm and gripper          
-            obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas); %set target to be equal to be the measured value
-            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.kMeas); %set target to be equal to be the measured value
+            %obj.arm2D.setTargetCurvatures(obj.arm2D.kMeas); %set target to be equal to be the measured value
+            obj.arm2D.gripper2D.setTargetCurvatures(obj.arm2D.gripper2D.dims.kMax); %set target to be equal to be the measured value
             obj.arm2D.actuate();
             
             if(obj.startedToSettle == false)
@@ -660,7 +672,7 @@ classdef PlannerGrasp < handle
             if(obj.startedToRelease == false)
                 obj.planTime = tic;
                 obj.startedToRelease = true;
-                obj.arm2D.gripper2D.setTargetCurvatures( 0.1 );
+                obj.arm2D.gripper2D.setTargetCurvatures( 0.01 );
                 obj.arm2D.actuate();
             else
                 if(toc(obj.planTime) > obj.waitTimeForGrasp )

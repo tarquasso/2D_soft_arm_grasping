@@ -139,21 +139,30 @@ classdef Arm2D < handle
             % Check #1 - are there enough segments and is the position dimension correct?
             
             % init thetaMeas and arcLenMeas!
+            
             obj.thetaMeas(1,1) = obj.dims.thetaStart;
+            l_thetaMeas = zeros(1,obj.dims.S+1);
+            l_thetaMeas(1,1) = obj.dims.thetaStart;
+            l_kMeas = 0.01*ones(1,obj.dims.S);
+            l_arcLenMeas = obj.dims.lengths;
             
             % Calculate the curvatures and angles using the 2 points method
             for s = 1:obj.dims.S
                 % Calculate properties of the current segment
-                [obj.kMeas(1,s), obj.thetaMeas(1,s+1)] = Arm2D.singSegIK(...
-                    obj.segPos2D(1:2,s),obj.thetaMeas(1,s), obj.segPos2D(1:2,s+1));
-                obj.arcLenMeas(1,s) = wrapToPi(...
-                    obj.thetaMeas(1,s+1)-obj.thetaMeas(1,s)) / obj.kMeas(s);
+                [l_kMeas(1,s), l_thetaMeas(1,s+1)] = Arm2D.singSegIK(...
+                    obj.segPos2D(1:2,s),l_thetaMeas(1,s), obj.segPos2D(1:2,s+1));
+                l_arcLenMeas(1,s) = wrapToPi(...
+                    l_thetaMeas(1,s+1)-l_thetaMeas(1,s)) / l_kMeas(s);
                 
                 % Check #2 - is the calculated length more than 20% different than the
                 % expected length?
-                l_lengthDiff = (obj.arcLenMeas(1,s)-obj.dims.lengths(1,s))/obj.dims.lengths(1,s);
+                l_lengthDiff = (l_arcLenMeas(1,s)-obj.dims.lengths(1,s))/obj.dims.lengths(1,s);
                 if (abs(l_lengthDiff) > 0.25)
                     fprintf('[ARM2D-calculateSegmentValues] bad arclength for Segment %i: length: %f\n',s,l_lengthDiff);
+                else
+                    obj.kMeas(1,s) = l_kMeas(1,s);
+                    obj.thetaMeas(1,s+1) = l_thetaMeas(1,s+1);
+                    obj.arcLenMeas(1,s) = l_arcLenMeas(1,s);
                 end
             end
             

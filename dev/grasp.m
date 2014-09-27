@@ -12,10 +12,10 @@ ARM = Arm2D(ExpTypes.Simulation);
 %ARM.gripper2D.setTargetCurvatures(1.0);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Object %%%%%%%%%%%%%%%%%%%%%%%%
-xMax = -0.10;
-xMin = -0.20;
-yMax = 0.30;
-yMin = 0.20;
+xMax = -0.15;
+xMin = -0.16;
+yMax = 0.25;
+yMin = 0.24;
 
 %     xMax = -0.05;
 %     xMin = -0.25;
