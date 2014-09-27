@@ -212,7 +212,7 @@ classdef PlannerGrasp < handle
         end
         
         function moveToBin(obj)
-            [l_kTarget] = 0.5*ones(1,6);
+            [l_kTarget] = 0.6*ones(1,6);
             [obj.xBin, obj.yBin, ~] = obj.arm2D.recursiveForwardKinematics(l_kTarget,...
                 obj.arm2D.dims.S, obj.arm2D.dims.lengths(obj.arm2D.dims.S));
             % Check if object is at bin
@@ -233,8 +233,8 @@ classdef PlannerGrasp < handle
                     l_kGuess = 0.01*ones(1, obj.arm2D.dims.S); %approx zeros curvatures
                      %obj.arm2D.inverseKinematics(obj.xBin, obj.yBin, l_thetaTarget, l_kGuess);
                     % request multiple configuration velocity trajs
-                    l_vMax = 0.75*ones(1,6);
-                    l_aMax = 0.25*ones(1,6);
+                    l_vMax = 0.9*ones(1,6);
+                    l_aMax = 0.3*ones(1,6);
                     
                     [obj.curvatureProfiles, obj.trajectoryEndTime ] = ...
                         obj.trajGen.generateMultipleVelocityProfiles(l_kInitial, l_kTarget,l_vMax,l_aMax );
@@ -324,7 +324,7 @@ classdef PlannerGrasp < handle
                     drawnow;
                 end
                 
-                obj.shapeHistory.addPlannerResults(obj.allRadii, ...
+                obj.shapeHistory.addPlannerResults(obj.connectLine,obj.allRadii, ...
                     obj.nMov, obj.kOptimal, obj.gammaOptimal, obj.tipOptimal);
                 obj.arcSpacePlanDone = true;
                 

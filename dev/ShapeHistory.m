@@ -53,9 +53,10 @@ classdef ShapeHistory < handle
             end
         end
         
-        function addPlannerResults(obj, allRadii, nMov, kOptimal, ...
+        function addPlannerResults(obj,connectLine, allRadii, nMov, kOptimal, ...
                 gammaOptimal, tipOptimal)
             % Add planner results
+            obj.plannerResults.connectLine = connectLine;
             obj.plannerResults.allRadii = allRadii;
             obj.plannerResults.nMov = nMov;
             obj.plannerResults.kOptimal = kOptimal;
