@@ -90,7 +90,7 @@ classdef PlannerGrasp < handle
             %ArcSpace Planner
             obj.transitDistInc = 0.05;
             obj.posMoveEpsilon = 0.02;
-            obj.posMoveEpsilonFinal = 0.01;%working: 0.02;
+            obj.posMoveEpsilonFinal = 0.015;%working: 0.02;
             obj.rotMovEpsilon = 6.0*(180/3.14159);%working: 7.5*(180/3.14159);
             obj.rotMovEpsilonFinal = 6.0*(180/3.14159);%working: 7.5*(180/3.14159);
             obj.nMov = 1;
@@ -212,7 +212,7 @@ classdef PlannerGrasp < handle
         end
         
         function moveToBin(obj)
-            [l_kTarget] = 0.6*ones(1,6);
+            [l_kTarget] = 0.3*ones(1,6);
             [obj.xBin, obj.yBin, ~] = obj.arm2D.recursiveForwardKinematics(l_kTarget,...
                 obj.arm2D.dims.S, obj.arm2D.dims.lengths(obj.arm2D.dims.S));
             % Check if object is at bin
