@@ -47,7 +47,9 @@ classdef PlannerGrasp < handle
         %ArcSpace Planner
         transitDistInc;
         posMoveEpsilon;
+        posMoveEpsilonFinal;
         rotMovEpsilon;
+        rotMovEpsilonFinal;
         arcSpacePlanDone;
         nMov;
         moveTo;
@@ -61,11 +63,17 @@ classdef PlannerGrasp < handle
         trajectoryEndTime;
         waitTimeForSettle;
         kOff1;
+        kOff5;
+        kOff6;
         waitTimeForGrasp;
         binTrajGenerated;
         xBin;
         yBin;
         stateTimeInit;
+        allRadii;
+        %only for plotting
+        connectLine;
+        
     end
     
     methods
@@ -80,18 +88,28 @@ classdef PlannerGrasp < handle
             obj.framePeriod = framePeriod;
             
             %ArcSpace Planner
-            obj.transitDistInc = 0.03;
-            obj.posMoveEpsilon = 0.01;%working: 0.02;
-            obj.rotMovEpsilon = 5.0*(180/3.14159);%working: 7.5*(180/3.14159);
+            obj.transitDistInc = 0.05;
+            obj.posMoveEpsilon = 0.02;
+            obj.posMoveEpsilonFinal = 0.01;%working: 0.02;
+            obj.rotMovEpsilon = 6.0*(180/3.14159);%working: 7.5*(180/3.14159);
+            obj.rotMovEpsilonFinal = 6.0*(180/3.14159);%working: 7.5*(180/3.14159);
             obj.nMov = 1;
             obj.arcSpacePlanDone = false;
             obj.moveTo = 1;
-            obj.kOff1 = 3;
+            obj.kOff1 = -3;
+            obj.kOff5 = 4;
+            obj.kOff6 = 4;
+            
+            
             obj.binTrajGenerated = 0;
             obj.xBin = 0.01;
             obj.yBin = sum(obj.arm2D.dims.lengths);
             obj.stateTimeInit;
-            
+            obj.connectLine = zeros(2,2);%only for plotting
+            obj.allRadii = zeros(1,obj.nMov);
+            obj.kOptimal = zeros(obj.nMov,obj.arm2D.dims.S);           
+            obj.gammaOptimal = zeros(obj.nMov,1);
+            obj.tipOptimal = zeros(obj.nMov,3);
             %Cartesian Planner
             obj.state = 1;
             obj.objInRightPosition = false;
@@ -125,6 +143,9 @@ classdef PlannerGrasp < handle
             
             obj.waitTimeForSettle = 1.0;%s
             obj.waitTimeForGrasp = 1.5; %s
+            
+            
+            
         end
         %Destructor
         function delete(obj)
@@ -191,7 +212,7 @@ classdef PlannerGrasp < handle
         end
         
         function moveToBin(obj)
-            [l_kTarget] = 0.1*ones(1,6);
+            [l_kTarget] = 0.6*ones(1,6);
             [obj.xBin, obj.yBin, ~] = obj.arm2D.recursiveForwardKinematics(l_kTarget,...
                 obj.arm2D.dims.S, obj.arm2D.dims.lengths(obj.arm2D.dims.S));
             % Check if object is at bin
@@ -199,7 +220,7 @@ classdef PlannerGrasp < handle
                 obj.arm2D.recursiveForwardKinematics(obj.arm2D.kMeas,...
                 obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
             
-            if(  norm(([obj.xBin; obj.yBin]-[xTipCur; yTipCur]),2) >= obj.posMoveEpsilon )
+            if(  norm(([obj.xBin; obj.yBin]-[xTipCur; yTipCur]),2) >= obj.posMoveEpsilonFinal )
                 
                 if( obj.binTrajGenerated == 0 )
                     
@@ -212,8 +233,8 @@ classdef PlannerGrasp < handle
                     l_kGuess = 0.01*ones(1, obj.arm2D.dims.S); %approx zeros curvatures
                      %obj.arm2D.inverseKinematics(obj.xBin, obj.yBin, l_thetaTarget, l_kGuess);
                     % request multiple configuration velocity trajs
-                    l_vMax = 0.75*ones(1,6);
-                    l_aMax = 0.25*ones(1,6);
+                    l_vMax = 0.9*ones(1,6);
+                    l_aMax = 0.3*ones(1,6);
                     
                     [obj.curvatureProfiles, obj.trajectoryEndTime ] = ...
                         obj.trajGen.generateMultipleVelocityProfiles(l_kInitial, l_kTarget,l_vMax,l_aMax );
@@ -263,18 +284,16 @@ classdef PlannerGrasp < handle
                 transitDist = tipToObject - finalRadius;
                 
                 obj.nMov = floor(transitDist/obj.transitDistInc);
-                allRadii = zeros(1,obj.nMov);
                 
-                obj.kOptimal = zeros(obj.nMov,obj.arm2D.dims.S);
                 
-                obj.gammaOptimal = zeros(obj.nMov,1);
-                obj.tipOptimal = zeros(obj.nMov,3);
+
                 
                 % For debugging purposes - plot connecting line
+                obj.connectLine = [xTipCur,yTipCur;obj.roundObject.x,obj.roundObject.y];
                 plot([xTipCur, obj.roundObject.x], [yTipCur, obj.roundObject.y], 'g');
                 
                 for i=1:1:obj.nMov
-                    allRadii(1,i) = tipToObject-i*transitDist/obj.nMov;
+                    obj.allRadii(1,i) = tipToObject-i*transitDist/obj.nMov;
                     if (i==1)
                         %define gammaGuess as the initial theta plus 90 degrees
                         l_gammaGuess = pi/2; % + obj.arm2D.thetaMeas(end);
@@ -282,14 +301,14 @@ classdef PlannerGrasp < handle
                         l_kGuess = obj.arm2D.kMeas;
                         %find optimal gamma and k using last measured theta and k
                         [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
-                            obj.findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
+                            obj.findOptimalK(obj.allRadii(i),l_gammaGuess,l_kGuess);
                     else
                         %find optimal k using last found optimal
                         %theta and k
                         l_gammaGuess = obj.gammaOptimal(i-1,:);
                         l_kGuess = obj.kOptimal(i-1,:);
                         [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
-                            obj.findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
+                            obj.findOptimalK(obj.allRadii(i),l_gammaGuess,l_kGuess);
                     end
                     %calculate tip vector
                     l_i = obj.arm2D.dims.S;
@@ -299,12 +318,14 @@ classdef PlannerGrasp < handle
                         obj.arm2D.recursiveForwardKinematics( obj.kOptimal(i,:), l_i, l_s );
                     
                     % For debugging purposes
-                    obj.plotArc(allRadii(1,i));
+                    obj.plotArc(obj.allRadii(1,i));
                     plot( obj.tipOptimal(i,1), obj.tipOptimal(i,2), 'or', 'MarkerSize', 10 );
                     obj.arm2D.plotArmMeasToHandle(obj.kOptimal(i,:));
                     drawnow;
                 end
                 
+                obj.shapeHistory.addPlannerResults(obj.connectLine,obj.allRadii, ...
+                    obj.nMov, obj.kOptimal, obj.gammaOptimal, obj.tipOptimal);
                 obj.arcSpacePlanDone = true;
                 
             else
@@ -314,15 +335,26 @@ classdef PlannerGrasp < handle
                 
                 [l_tipX, l_tipY, l_tipTheta] = ...
                     obj.arm2D.recursiveForwardKinematics( obj.arm2D.kMeas, l_i, l_s );
-                
-                %check if distance to target radius is smaller than epsilon
-                if( norm( [l_tipX, l_tipY] - obj.tipOptimal(obj.moveTo,1:2),2) <= obj.posMoveEpsilon ...
-                        && norm( l_tipTheta - obj.tipOptimal(obj.moveTo,3), 2) <= obj.rotMovEpsilon )
-                    %increment move to by 1
-                    obj.moveTo = obj.moveTo +1;
-                    obj.trajGenerated = 0;
+                for j = obj.moveTo:obj.nMov;
+                    l_posDiff = norm( [l_tipX, l_tipY] - obj.tipOptimal(j,1:2),2);
+                    l_rotDiff = norm( l_tipTheta - obj.tipOptimal(j,3), 2);
+                    if(obj.moveTo == obj.nMov)
+                        %higher precision for final move
+                        l_posMoveEpsilon = obj.posMoveEpsilonFinal;
+                        l_rotMovEpsilon = obj.rotMovEpsilonFinal;
+                    else
+                        l_posMoveEpsilon = obj.posMoveEpsilon;
+                        l_rotMovEpsilon = obj.rotMovEpsilon;
+                    end
+                    %check if distance to target radius is smaller than epsilon
+                    if( l_posDiff <= l_posMoveEpsilon && l_rotDiff <= l_rotMovEpsilon )
+                        
+                        %increment move to by 1
+                        obj.moveTo = j+1;
+                        obj.trajGenerated = 0;
+                        break;
+                    end
                 end
-                
                 % send target curvatures until final pose is achieved
                 if(obj.moveTo <= obj.nMov)
                     
@@ -463,9 +495,9 @@ classdef PlannerGrasp < handle
             
             function [E_tot, g] = cost(parametersCurrent)
                 k = parametersCurrent(2:end);
-                R = [1, 0.1, 0.1, 0.1, 0.1, 0.1];
-                E_tot = sum( [R(1)*(k(1)+obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)].^2);
-                g = 2.*[R(1)*(k(1)+obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)];
+                R = [1.0, 0.3, 0.2, 0.1, 0.1, 0.1];
+                E_tot = sum( [R(1)*(k(1)-obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*(k(5)-obj.kOff5), R(6)*(k(6)-obj.kOff6)].^2);
+                g = 2.*[R(1)*(k(1)-obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*(k(5)-obj.kOff5), R(6)*(k(6)-obj.kOff6)];
                 g = [0, g];
             end
         end
