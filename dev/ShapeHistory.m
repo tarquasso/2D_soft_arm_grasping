@@ -16,6 +16,7 @@ classdef ShapeHistory < handle
         tipPosition
         objectPosition
         gripperkTarget
+        plannerResults
     end
     
     methods
@@ -32,7 +33,7 @@ classdef ShapeHistory < handle
             obj.tipPosition = NaN(N,3);
             obj.objectPosition = NaN(N,2);
             obj.gripperkTarget = NaN(N,1);
-            
+
         end
         
         function add(obj, timestamp, kMeas, arcLenMeas, kTarget, tipPosition, objectPosition, gripperkTarget)
@@ -50,6 +51,16 @@ classdef ShapeHistory < handle
             if obj.i == 0
                 obj.i = obj.N;
             end
+        end
+        
+        function addPlannerResults(obj, allRadii, nMov, kOptimal, ...
+                gammaOptimal, tipOptimal)
+            % Add planner results
+            obj.plannerResults.allRadii = allRadii;
+            obj.plannerResults.nMov = nMov;
+            obj.plannerResults.kOptimal = kOptimal;
+            obj.plannerResults.gammaOptimal = gammaOptimal;
+            obj.plannerResults.tipOptimal = tipOptimal;
         end
         
         %Destructor

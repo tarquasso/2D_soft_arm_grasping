@@ -66,6 +66,10 @@ classdef PlannerGrasp < handle
         xBin;
         yBin;
         stateTimeInit;
+        allRadii;
+        %only for plotting
+        connectLine;
+        
     end
     
     methods
@@ -91,7 +95,11 @@ classdef PlannerGrasp < handle
             obj.xBin = 0.01;
             obj.yBin = sum(obj.arm2D.dims.lengths);
             obj.stateTimeInit;
-            
+            obj.connectLine = zeros(2,2);%only for plotting
+            obj.allRadii = zeros(1,obj.nMov);
+            obj.kOptimal = zeros(obj.nMov,obj.arm2D.dims.S);           
+            obj.gammaOptimal = zeros(obj.nMov,1);
+            obj.tipOptimal = zeros(obj.nMov,3);
             %Cartesian Planner
             obj.state = 1;
             obj.objInRightPosition = false;
@@ -125,6 +133,9 @@ classdef PlannerGrasp < handle
             
             obj.waitTimeForSettle = 1.0;%s
             obj.waitTimeForGrasp = 1.5; %s
+            
+            
+            
         end
         %Destructor
         function delete(obj)
@@ -263,18 +274,16 @@ classdef PlannerGrasp < handle
                 transitDist = tipToObject - finalRadius;
                 
                 obj.nMov = floor(transitDist/obj.transitDistInc);
-                allRadii = zeros(1,obj.nMov);
                 
-                obj.kOptimal = zeros(obj.nMov,obj.arm2D.dims.S);
                 
-                obj.gammaOptimal = zeros(obj.nMov,1);
-                obj.tipOptimal = zeros(obj.nMov,3);
+
                 
                 % For debugging purposes - plot connecting line
+                obj.connectLine = [xTipCur,yTipCur;obj.roundObject.x,obj.roundObject.y];
                 plot([xTipCur, obj.roundObject.x], [yTipCur, obj.roundObject.y], 'g');
                 
                 for i=1:1:obj.nMov
-                    allRadii(1,i) = tipToObject-i*transitDist/obj.nMov;
+                    obj.allRadii(1,i) = tipToObject-i*transitDist/obj.nMov;
                     if (i==1)
                         %define gammaGuess as the initial theta plus 90 degrees
                         l_gammaGuess = pi/2; % + obj.arm2D.thetaMeas(end);
@@ -282,14 +291,14 @@ classdef PlannerGrasp < handle
                         l_kGuess = obj.arm2D.kMeas;
                         %find optimal gamma and k using last measured theta and k
                         [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
-                            obj.findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
+                            obj.findOptimalK(obj.allRadii(i),l_gammaGuess,l_kGuess);
                     else
                         %find optimal k using last found optimal
                         %theta and k
                         l_gammaGuess = obj.gammaOptimal(i-1,:);
                         l_kGuess = obj.kOptimal(i-1,:);
                         [obj.gammaOptimal(i,:),obj.kOptimal(i,:)] = ...
-                            obj.findOptimalK(allRadii(i),l_gammaGuess,l_kGuess);
+                            obj.findOptimalK(obj.allRadii(i),l_gammaGuess,l_kGuess);
                     end
                     %calculate tip vector
                     l_i = obj.arm2D.dims.S;
@@ -299,12 +308,14 @@ classdef PlannerGrasp < handle
                         obj.arm2D.recursiveForwardKinematics( obj.kOptimal(i,:), l_i, l_s );
                     
                     % For debugging purposes
-                    obj.plotArc(allRadii(1,i));
+                    obj.plotArc(obj.allRadii(1,i));
                     plot( obj.tipOptimal(i,1), obj.tipOptimal(i,2), 'or', 'MarkerSize', 10 );
                     obj.arm2D.plotArmMeasToHandle(obj.kOptimal(i,:));
                     drawnow;
                 end
                 
+                obj.shapeHistory.addPlannerResults(obj.allRadii, ...
+                    obj.nMov, obj.kOptimal, obj.gammaOptimal, obj.tipOptimal);
                 obj.arcSpacePlanDone = true;
                 
             else
