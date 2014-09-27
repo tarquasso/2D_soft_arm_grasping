@@ -49,6 +49,7 @@ classdef PlannerGrasp < handle
         posMoveEpsilon;
         posMoveEpsilonFinal;
         rotMovEpsilon;
+        rotMovEpsilonFinal;
         arcSpacePlanDone;
         nMov;
         moveTo;
@@ -62,6 +63,8 @@ classdef PlannerGrasp < handle
         trajectoryEndTime;
         waitTimeForSettle;
         kOff1;
+        kOff5;
+        kOff6;
         waitTimeForGrasp;
         binTrajGenerated;
         xBin;
@@ -85,14 +88,19 @@ classdef PlannerGrasp < handle
             obj.framePeriod = framePeriod;
             
             %ArcSpace Planner
-            obj.transitDistInc = 0.03;
-            obj.posMoveEpsilon = 0.018;
+            obj.transitDistInc = 0.05;
+            obj.posMoveEpsilon = 0.02;
             obj.posMoveEpsilonFinal = 0.01;%working: 0.02;
             obj.rotMovEpsilon = 6.0*(180/3.14159);%working: 7.5*(180/3.14159);
+            obj.rotMovEpsilonFinal = 6.0*(180/3.14159);%working: 7.5*(180/3.14159);
             obj.nMov = 1;
             obj.arcSpacePlanDone = false;
             obj.moveTo = 1;
-            obj.kOff1 = 3;
+            obj.kOff1 = -3;
+            obj.kOff5 = 4;
+            obj.kOff6 = 4;
+            
+            
             obj.binTrajGenerated = 0;
             obj.xBin = 0.01;
             obj.yBin = sum(obj.arm2D.dims.lengths);
@@ -212,7 +220,7 @@ classdef PlannerGrasp < handle
                 obj.arm2D.recursiveForwardKinematics(obj.arm2D.kMeas,...
                 obj.arm2D.dims.S, obj.arm2D.arcLenMeas(obj.arm2D.dims.S));
             
-            if(  norm(([obj.xBin; obj.yBin]-[xTipCur; yTipCur]),2) >= obj.posMoveEpsilon )
+            if(  norm(([obj.xBin; obj.yBin]-[xTipCur; yTipCur]),2) >= obj.posMoveEpsilonFinal )
                 
                 if( obj.binTrajGenerated == 0 )
                     
@@ -333,11 +341,13 @@ classdef PlannerGrasp < handle
                     if(obj.moveTo == obj.nMov)
                         %higher precision for final move
                         l_posMoveEpsilon = obj.posMoveEpsilonFinal;
+                        l_rotMovEpsilon = obj.rotMovEpsilonFinal;
                     else
                         l_posMoveEpsilon = obj.posMoveEpsilon;
+                        l_rotMovEpsilon = obj.rotMovEpsilon;
                     end
                     %check if distance to target radius is smaller than epsilon
-                    if( l_posDiff <= l_posMoveEpsilon && l_rotDiff <= obj.rotMovEpsilon )
+                    if( l_posDiff <= l_posMoveEpsilon && l_rotDiff <= l_rotMovEpsilon )
                         
                         %increment move to by 1
                         obj.moveTo = j+1;
@@ -356,8 +366,8 @@ classdef PlannerGrasp < handle
                         l_kInitial = double(obj.arm2D.kMeas); % config traj start values
                         l_kTarget = obj.kOptimal(obj.moveTo,:); % config traj end values
                         % request multiple configuration velocity trajs
-                        l_vMax = 1.1*ones(1,6);
-                        l_aMax = 0.3*ones(1,6);                   
+                        l_vMax = 1.5*ones(1,6);
+                        l_aMax = 0.5*ones(1,6);                   
                         [obj.curvatureProfiles, obj.trajectoryEndTime ] = ...
                             obj.trajGen.generateMultipleVelocityProfiles(l_kInitial, l_kTarget,l_vMax,l_aMax );
                         % store start and end values
@@ -485,9 +495,9 @@ classdef PlannerGrasp < handle
             
             function [E_tot, g] = cost(parametersCurrent)
                 k = parametersCurrent(2:end);
-                R = [0.5, 0.1, 0.1, 0.1, 0.1, 0.1];
-                E_tot = sum( [R(1)*(k(1)+obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)].^2);
-                g = 2.*[R(1)*(k(1)+obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*k(5), R(6)*k(6)];
+                R = [1.0, 0.3, 0.2, 0.1, 0.1, 0.1];
+                E_tot = sum( [R(1)*(k(1)-obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*(k(5)-obj.kOff5), R(6)*(k(6)-obj.kOff6)].^2);
+                g = 2.*[R(1)*(k(1)-obj.kOff1), R(2)*k(2), R(3)*k(3), R(4)*k(4), R(5)*(k(5)-obj.kOff5), R(6)*(k(6)-obj.kOff6)];
                 g = [0, g];
             end
         end
