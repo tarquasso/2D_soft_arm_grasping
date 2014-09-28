@@ -26,14 +26,21 @@ classdef RoundObject < handle
             obj.y = val_y;
         end
         %Plot the object and return a handle to the plot
-        function h = plotObjectToHandle(obj)
+        function h = plotObjectToHandle(obj, objectColor)
+            if nargin < 2
+                objectColor = 'g'; 
+            end
             
-            delta_angle = 0.01;
+            h = rectangle('Position',[(obj.x - obj.r), (obj.y - obj.r), 2*obj.r, 2*obj.r ],'Curvature',[1,1],...
+                'FaceColor',objectColor);
+            daspect([1,1,1]);
             
-            ang = 0:delta_angle:2*pi;
-            xp = obj.r*cos(ang);
-            yp = obj.r*sin(ang);
-            h = plot(obj.x+xp,obj.y+yp,'-b');
+%             delta_angle = 0.01;
+%             
+%             ang = 0:delta_angle:2*pi;
+%             xp = obj.r*cos(ang);
+%             yp = obj.r*sin(ang);
+%             h = plot(obj.x+xp,obj.y+yp, objectColor, 'LineWidth', 1.5);
             
         end
     end
