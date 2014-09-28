@@ -1,7 +1,7 @@
-function plotArmAtTime( currData, time )
+function plotArmAtTime( currData, time, graspIndex )
 
-gripperOn = 50;
-gripperOff = 0.01;
+gripperOnCurvature = 50;
+gripperOffCurvature = 0.01;
 
 % find index corresponding to time
 timeIndex = find(currData.History.timestamps >= time, 1, 'first' );
@@ -20,15 +20,19 @@ l_kTargetGripper = currData.History.gripperkTarget(timeIndex,1);
 dummyArm = Arm2D(ExpTypes.Simulation);
 dummyArm.setMeasuredCurvatures(l_kMeas);
 
-if(l_kTargetGripper == gripperOn)
+if(l_kTargetGripper == gripperOnCurvature)
     l_gripperLengthShow = 0.130;
     l_gripperCurvatureShow = 35;
+else
+    l_gripperLengthShow = dummyArm.gripper2D.dims.length;
+    l_gripperCurvatureShow = gripperOffCurvature;
+end
+
+if(timeIndex >= graspIndex)
     armColor = '-m';
     gripperColor = '-m';
     objectColor = 'm';
 else
-    l_gripperLengthShow = dummyArm.gripper2D.dims.length;
-    l_gripperCurvatureShow = gripperOff;
     armColor = '-c';
     gripperColor = '-c';
     objectColor = 'c';

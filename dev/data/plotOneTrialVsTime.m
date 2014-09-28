@@ -38,6 +38,7 @@ currData = load('pos5a\27-Sep-2014 03_50_25.mat');
 plotArmPlan( currData );
 
 %plot measured data at time intervals
+graspIndex = 519; %need to look this up before hand
 for time = 1:1:int16(currData.History.timestamps(currData.History.i-1))
-    plotArmAtTime( currData, time )
+    plotArmAtTime( currData, time, graspIndex )
 end
