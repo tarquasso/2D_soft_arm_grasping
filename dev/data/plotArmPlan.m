@@ -30,6 +30,11 @@ gripperColor = '--k';
 armColor = '--k';
 circleColor = '--k';
 
+%plot the optimal plan
+gripperColor = '-k';
+armColor = '-b';
+circleColor = '-g';
+
 for i = 1:currData.History.plannerResults.nMov
     l_kTarget = currData.History.plannerResults.kOptimal(i, :);
     dummyArm.plotArmTargetToHandle(l_kTarget, armColor, gripperColor);

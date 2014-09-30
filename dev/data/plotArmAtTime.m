@@ -36,6 +36,10 @@ else
     armColor = '-c';
     gripperColor = '-c';
     objectColor = 'c';
+    
+    armColor = '-k';
+    gripperColor = '-k';
+    objectColor = 'c';
 end
 
 dummyArm.gripper2D.setMeasuredCurvatures(l_gripperCurvatureShow);
