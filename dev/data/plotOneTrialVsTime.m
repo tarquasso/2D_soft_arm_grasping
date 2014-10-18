@@ -1,5 +1,10 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Figure %%%%%%%%%%%%%%%%%%%%%%%%
+clc
+clear all
 
+%% Find experiment files
+addpath ../ % add dev folder for class definitions
+
+%% setup figure
 h = figure;
 
 axes1 = axes('Parent',h,'YTick',[0 0.1 0.2 0.3 0.4 0.5 0.6],...
@@ -25,14 +30,15 @@ yMin = 0.35;
 rectangle('Position',[xMin,yMin,(xMax-xMin),(yMax-yMin)],'Curvature',[0,0],...
           'FaceColor','r')
 
-%% run experiment
-expTime = 70;
-ac = ArmController2D(ExpTypes.PhysicalExperiment);
+%% plot experiment for pos 5 a
+addpath pos5a % first experiment folder
+currData = load('pos5a\27-Sep-2014 03_50_25.mat');
 
-ac.start;
+% plot plan
+plotArmPlan( currData );
 
-%timeoutDlg(@input, expTime, 'Enter 1 to cancel:');
-pause(expTime);
-if(ac.isvalid ==1)
-    delete(ac);
+%plot measured data at time intervals
+graspIndex = 519; %need to look this up before hand
+for time = 1:1:int16(currData.History.timestamps(currData.History.i-1))
+    plotArmAtTime( currData, time, graspIndex )
 end

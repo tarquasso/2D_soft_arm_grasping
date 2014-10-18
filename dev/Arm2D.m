@@ -257,8 +257,14 @@ classdef Arm2D < handle
             end
         end
         %Plot the target state of the 2D
-        function h = plotArmTargetToHandle(obj, k)
+        function h = plotArmTargetToHandle(obj, k, armCol, gripCol)
             
+            if nargin < 3
+                armCol = 'r';
+                gripCol = 'k';
+            elseif nargin < 4
+                gripCol = 'k';
+            end
             
             l_N = obj.dims.S + 1;
             l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
@@ -278,17 +284,23 @@ classdef Arm2D < handle
             end
             
             hold on
-            axis([-0.30 0.30 -0.10 0.50])
-            axis square
+            %axis([-0.30 0.30 -0.10 0.50])
+            %axis square
             
-            h = plot(x(1:end-M),y(1:end-M), 'r', x(end-M:end),y(end-M:end), 'k', 'LineWidth', 2);
+            h = plot(x(1:end-M),y(1:end-M), armCol, x(end-M:end),y(end-M:end), gripCol, 'LineWidth', 2);
 
             drawnow;
             
         end
         %Plot the measured state of the 2D
-        function h = plotArmMeasToHandle(obj, k)
+        function h = plotArmMeasToHandle(obj, k, armCol, gripCol)
             
+            if nargin < 3
+                armCol = 'b';
+                gripCol = 'k';          
+            elseif nargin < 4
+                gripCol = 'k'; 
+            end
             
             l_N = obj.dims.S + 1;
             l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
@@ -300,18 +312,31 @@ classdef Arm2D < handle
             y = zeros(1, l_N*M);
             theta = zeros(1, l_N*M);
             
-            for i=1:l_N
+            for i=1:l_N-1
                 for j=1:M
                     [x(total), y(total), theta(total)] = obj.recursiveForwardKinematics( l_k, i, l_arcLen(i)*(j/M));
                     total = total + 1;
                 end
             end
             
-            hold on
-            axis([-0.30 0.30 -0.10 0.50])
-            axis square
+            gripperOffset = 0.019;
+            xOffset = cos(theta(total-1))*gripperOffset;
+            yOffset = sin(theta(total-1))*gripperOffset;
             
-            h = plot(x(1:end-10),y(1:end-10), 'b', x(end-10:end),y(end-10:end), 'k', 'LineWidth', 2);
+            i = l_N;
+            for j=1:M
+                [x(total), y(total), theta(total)] = obj.recursiveForwardKinematics( l_k, i, l_arcLen(i)*(j/M));
+                x(total) = x(total) + xOffset;
+                y(total) = y(total) + yOffset;
+                total = total + 1;
+            end
+            
+            
+            hold on
+            %axis([-0.30 0.30 -0.10 0.50])
+            %axis square
+            
+            h = plot(x(1:end-10),y(1:end-10), armCol, x(end-10:end),y(end-10:end), gripCol, 'LineWidth', 2);
 
             drawnow;
             

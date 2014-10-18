@@ -35,15 +35,42 @@ TRAJ = TrajGen();
 PLANNER = PlannerGrasp(PlannerTypes.ArcSpacePlanner, ARM, OBJECT, TRAJ, framePeriod);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Figure %%%%%%%%%%%%%%%%%%%%%%%%
-figure;
-hold on;
-plot([0,0],[-1,1], '-k');
-plot([-1,1],[0,0], '-k');
 
-plot([xMin,xMin],[yMin,yMax], '-k');
-plot([xMax,xMax],[yMin,yMax], '-k');
-plot([xMin,xMax],[yMin,yMin], '-k');
-plot([xMin,xMax],[yMax,yMax], '-k');
+%% setup figure
+h = figure;
+
+axes1 = axes('Parent',h,'YTick',[0 0.1 0.2 0.3 0.4 0.5 0.6],...
+    'XTick',[-0.5 -0.4 -0.3 -0.2 -0.1 0 0.1],...
+    'PlotBoxAspectRatio',[1 1 1],...
+    'LineWidth',1.5,...
+    'FontSize',14);
+
+xlim(axes1,[-0.4 0.15]);
+ylim(axes1,[0.0 0.55]);
+xlabel('x [m]', 'FontSize', 20);
+ylabel('y [m]', 'FontSize', 20);
+
+box(axes1,'on');
+grid(axes1,'on');
+hold(axes1,'all');
+
+xMax = 0.05;
+xMin = -0.1;
+yMax = 0.42;
+yMin = 0.35;
+
+rectangle('Position',[xMin,yMin,(xMax-xMin),(yMax-yMin)],'Curvature',[0,0],...
+          'FaceColor','r')
+
+% figure;
+% hold on;
+% plot([0,0],[-1,1], '-k');
+% plot([-1,1],[0,0], '-k');
+% 
+% plot([xMin,xMin],[yMin,yMax], '-k');
+% plot([xMax,xMax],[yMin,yMax], '-k');
+% plot([xMin,xMax],[yMin,yMin], '-k');
+% plot([xMin,xMax],[yMax,yMax], '-k');
 
 armPlotHandle = ARM.plotArmMeasToHandle(ARM.kMeas);
 objectPlotHandle = OBJECT.plotObjectToHandle();
