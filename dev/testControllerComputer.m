@@ -3,7 +3,7 @@ xMax = -0.10;
 xMin = -0.25;
 yMax = 0.35;
 yMin = 0.12;
-expTime = 70;
+expTime = 60;
 
 figure;
 hold on;

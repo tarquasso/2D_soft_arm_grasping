@@ -233,7 +233,7 @@ classdef PlannerGrasp < handle
                     l_kGuess = 0.01*ones(1, obj.arm2D.dims.S); %approx zeros curvatures
                      %obj.arm2D.inverseKinematics(obj.xBin, obj.yBin, l_thetaTarget, l_kGuess);
                     % request multiple configuration velocity trajs
-                    l_vMax = 0.9*ones(1,6);
+                    l_vMax = 0.5*ones(1,6);
                     l_aMax = 0.3*ones(1,6);
                     
                     [obj.curvatureProfiles, obj.trajectoryEndTime ] = ...
