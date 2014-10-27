@@ -28,7 +28,9 @@ classdef Sensor < handle
             obj.arm2D = arm2DHandle;
             obj.roundObject = roundObjectHandle;
             obj.armController2D = armController2DHandle;
-            obj.totalNumRigidBodies = 9;
+            % arm plus gripper plus one for the final marker plus one
+            % additional marker for the object:
+            obj.totalNumRigidBodies = obj.arm2D.dims.S+obj.arm2D.gripper2D.dims.S+1+1; 
             obj.natNetClientInit = false;
             
             % Add NatNet .NET assembly so that Matlab can access its methods
@@ -320,7 +322,7 @@ classdef Sensor < handle
                         % Tell Arm Controller that measurements are done
                         obj.armController2D.sensorMeasurementsDone();
                     else
-                        error('[Sensor] Only %i Rigid Bodies, but we need 7!\n',obj.frameOfData.nRigidBodies);
+                        error('[Sensor] We have %i Rigid Bodies, but we need %i!\n',obj.frameOfData.nRigidBodies,obj.totalNumRigidBodies);
                     end
                 end
             catch exc
