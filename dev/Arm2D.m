@@ -18,12 +18,21 @@ classdef Arm2D < handle
         kIntermediate
         
         calibrated
+        gripperExists
     end
     
     methods
         %Constructor
-        function obj = Arm2D( expType )
+        function obj = Arm2D( expType , armDof, gripperExists)
             
+            if nargin < 3
+                obj.gripperExists = true; % as standard, there is a gripper
+            else
+                obj.gripperExists = gripperExists;
+            end
+            if nargin < 2
+                armDof = 6; % is the total number of arm segments
+            end
             if nargin < 1
                 expType = ExpTypes.PhysicalExperiment;
             else
@@ -36,10 +45,15 @@ classdef Arm2D < handle
             
             % Dimensions and orientation of the arm
             obj.dims = struct();
-            obj.dims.S = 6;          % is the total number of arm segments
-            obj.dims.kMin = [-11.0, -18.5, -11.0, -14.1, -11.8, -17.4];     % minimum allowable curvature
-            obj.dims.kMax = [13.8, 11, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
-            obj.dims.thetaStart = pi/2;   % is the current/measured initial orientation of the first segment
+            obj.dims.S = armDof;
+            %configuration based on 6 dof unifrom channel arm
+            kMinMU6 = [-11.0, -18.5, -11.0, -14.1, -11.8, -17.4];     % minimum allowable curvature
+            kMaxMU6 = [13.8, 11, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
+            thetaStartMU6 = pi/2;   % is the current/measured initial orientation of the first segment
+            %end of conifg
+            obj.dims.kMin =kMinMU6(1:obj.dims.S);
+            obj.dims.kMax =kMaxMU6(1:obj.dims.S);
+            obj.dims.thetaStart = thetaStartMU6;
             obj.dims.lengths = repmat(2.47*0.0254,1,obj.dims.S); %[m]
             obj.dims.kThreshold = 5;
             obj.dims.kEpsilon = 0.5;
@@ -50,21 +64,26 @@ classdef Arm2D < handle
             obj.setMeasuredCurvatures(k_init);
             obj.kIntermediate = k_init;
             obj.setTargetCurvatures(k_init);
-    
-    
+                       
             %Create gripper2D before curvature controller
-            obj.gripper2D = Gripper2D;            
-    
-            obj.numOfRigidBodies = obj.dims.S + obj.gripper2D.dims.S + 1; % plus one is accounting for the base
+            if(obj.gripperExists == true)
+                obj.gripper2D = Gripper2D();
+                obj.numOfRigidBodies = obj.dims.S + obj.gripper2D.dims.S + 1; % plus one is accounting for the base
+                l_vectorLength = obj.dims.S+obj.gripper2D.dims.S;
+            else
+                obj.numOfRigidBodies = obj.dims.S + 1; % plus one is accounting for the base               
+                l_vectorLength = obj.dims.S;
+            end
             %Create a curvature controller
-            l_vectorLength = obj.dims.S+obj.gripper2D.dims.S;
             obj.curvatureController = CurvatureController(l_vectorLength, expType);
-
+            
             obj.calibrated = false;
         end
         %Destructor
         function delete(obj)
+            if(obj.gripperExists == true)
             obj.gripper2D.delete();
+            end
             obj.curvatureController.delete();
         end
         %Set Target Curvatures of the 2D arm
@@ -84,7 +103,7 @@ classdef Arm2D < handle
                     obj.kTarget = val;
                 else
                     display('ERROR: [ARM2D-setTargetCurvatures] An element of k exceeds allowable limit');
-                    display(num2str(val));                   
+                    display(num2str(val));
                 end
                 
             else
@@ -94,12 +113,17 @@ classdef Arm2D < handle
         
         function actuate(obj)
             %obj.kTarget - obj.kMeas
-
+            
             l_alpha = 1.0; %currently not filtering
             obj.kIntermediate = l_alpha*obj.kTarget + (1-l_alpha)*obj.kIntermediate;
+            if(obj.gripperExists == true)
             obj.curvatureController.sendCurvatureErrors( [obj.kIntermediate, obj.gripper2D.kTarget] ,...
                 [obj.kMeas,obj.gripper2D.kMeas] );
-
+            else
+                obj.curvatureController.sendCurvatureErrors( [obj.kIntermediate] ,...
+                [obj.kMeas] );
+            end
+            
         end
         %Set Measured Curvatures of the 2D arm
         function setMeasuredCurvatures(obj, val)
@@ -169,13 +193,13 @@ classdef Arm2D < handle
             if(obj.calibrated == false)
                 if( max(abs(obj.kMeas) > obj.dims.kThreshold) == 1 )
                     
-                    fprintf('not at home: '); 
+                    fprintf('not at home: ');
                     obj.kMeas
                     fprintf('\n');
                 else
                     obj.calibrated = true;
                     obj.kMeasInit = obj.kMeas;
-                    obj.thetaMeasInit = obj.thetaMeas;                   
+                    obj.thetaMeasInit = obj.thetaMeas;
                 end
             end
             
@@ -187,7 +211,9 @@ classdef Arm2D < handle
             % HERE ADD THE GRIPPER ANALYSIS FOR s =
             % (obj.dims.S+1):(obj.dims.S+1+obj.gripper2D.dims.S)
             % FOR NOW HARDCODED /todo
-            obj.gripper2D.calculateSegmentValues(obj.thetaMeas(1,obj.dims.S+1));          
+            if(obj.gripperExists == true) 
+                obj.gripper2D.calculateSegmentValues(obj.thetaMeas(1,obj.dims.S+1));
+            end
         end
         
         %Forward kinematic transformation of the 2D arm
@@ -198,8 +224,13 @@ classdef Arm2D < handle
             % i - is the segment of interest
             % s - is the length of interest along segment i
             
-            l_N = obj.dims.S + 1; % number of arm links plus the gripper
-            l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
+            if(obj.gripperExists == true)
+                l_N = obj.dims.S + obj.gripper2D.dims.S; % number of arm links plus the gripper
+                l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
+            else
+                l_N = obj.dims.S; % number of arm links
+                l_arcLen = [obj.arcLenMeas];
+            end
             l_valSize = length(k);
             
             if( i > l_valSize )
@@ -265,10 +296,16 @@ classdef Arm2D < handle
             elseif nargin < 4
                 gripCol = 'k';
             end
-            
-            l_N = obj.dims.S + 1;
-            l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
-            l_k = [k, obj.gripper2D.kMeas];
+                        
+            if(obj.gripperExists == true)
+                l_N = obj.dims.S + obj.gripper2D.dims.S; % number of arm links plus the gripper
+                l_arcLen = [obj.arcLenMeas, obj.gripper2D.arcLenMeas];
+                l_k = [k, obj.gripper2D.kMeas];
+            else
+                l_N = obj.dims.S; % number of arm links
+                l_arcLen = [obj.arcLenMeas];
+                l_k = k;
+            end
             
             M = 10;
             total = 1;
@@ -288,7 +325,7 @@ classdef Arm2D < handle
             %axis square
             
             h = plot(x(1:end-M),y(1:end-M), armCol, x(end-M:end),y(end-M:end), gripCol, 'LineWidth', 2);
-
+            
             drawnow;
             
         end
@@ -297,9 +334,9 @@ classdef Arm2D < handle
             
             if nargin < 3
                 armCol = 'b';
-                gripCol = 'k';          
+                gripCol = 'k';
             elseif nargin < 4
-                gripCol = 'k'; 
+                gripCol = 'k';
             end
             
             l_N = obj.dims.S + 1;
@@ -337,7 +374,7 @@ classdef Arm2D < handle
             %axis square
             
             h = plot(x(1:end-10),y(1:end-10), armCol, x(end-10:end),y(end-10:end), gripCol, 'LineWidth', 2);
-
+            
             drawnow;
             
         end

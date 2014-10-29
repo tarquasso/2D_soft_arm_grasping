@@ -23,16 +23,21 @@ classdef Sensor < handle
     
     methods(Access = public)
         % Constructor
-        function obj = Sensor(arm2DHandle,roundObjectHandle,armController2DHandle)
+        function obj = Sensor(armController2DHandle,arm2DHandle,roundObjectHandle)
             %Assign Handles
-            obj.arm2D = arm2DHandle;
-            obj.roundObject = roundObjectHandle;
             obj.armController2D = armController2DHandle;
-            % arm plus gripper plus one for the final marker plus one
-            % additional marker for the object:
-            obj.totalNumRigidBodies = obj.arm2D.dims.S+obj.arm2D.gripper2D.dims.S+1+1; 
-            obj.natNetClientInit = false;
+            obj.arm2D = arm2DHandle;
             
+            if nargin < 3
+                obj.totalNumRigidBodies = obj.arm2D.numOfRigidBodies; 
+            else
+                obj.roundObject = roundObjectHandle;
+                % arm plus gripper plus one for the final marker plus one
+                % additional marker for the object:
+                obj.totalNumRigidBodies = obj.arm2D.numOfRigidBodies+1;
+            end
+            
+            obj.natNetClientInit = false;
             % Add NatNet .NET assembly so that Matlab can access its methods
             obj.createNatNetClient();
             % Connect to an OptiTrack server (Motive)
@@ -294,24 +299,28 @@ classdef Sensor < handle
                         % Extract info for arm and gripper
                         for s = 1:obj.totalNumRigidBodies
                             if (s >= 1 && s <= obj.arm2D.dims.S + 1)
-                            %TAKE X position
-                            obj.arm2D.segPos2D(1,i) = double(obj.frameOfData.RigidBodies(s).z);
-                            %TAKE Y position
-                            obj.arm2D.segPos2D(2,i) = double(obj.frameOfData.RigidBodies(s).x);
-                            i = i+1;
+                                %TAKE X position
+                                obj.arm2D.segPos2D(1,i) = double(obj.frameOfData.RigidBodies(s).z);
+                                %TAKE Y position
+                                obj.arm2D.segPos2D(2,i) = double(obj.frameOfData.RigidBodies(s).x);
+                                i = i+1;
                             end
-                            if ( s >= obj.arm2D.dims.S +1 &&  s <= obj.arm2D.dims.S +1+obj.arm2D.gripper2D.dims.S)
-                             %TAKE X position
-                            obj.arm2D.gripper2D.segPos2D(1,j) = double(obj.frameOfData.RigidBodies(s).z);
-                            %TAKE Y position
-                            obj.arm2D.gripper2D.segPos2D(2,j) = double(obj.frameOfData.RigidBodies(s).x);
-
-                            j = j+1;
-                            end
-                            if (s == obj.arm2D.dims.S+1+obj.arm2D.gripper2D.dims.S+1)
-                                l_roundObjectX = double(obj.frameOfData.RigidBodies(s).z-obj.frameOfData.RigidBodies(1).z);
-                                l_roundObjectY = double(obj.frameOfData.RigidBodies(s).x-obj.frameOfData.RigidBodies(1).x);
-                                obj.roundObject.setMeasuredState(l_roundObjectX,l_roundObjectY);
+                            
+                            if(obj.arm2D.gripperExists == true)
+                                if ( s >= obj.arm2D.dims.S +1 &&  s <= obj.arm2D.dims.S +1+obj.arm2D.gripper2D.dims.S)
+                                    %TAKE X position
+                                    obj.arm2D.gripper2D.segPos2D(1,j) = double(obj.frameOfData.RigidBodies(s).z);
+                                    %TAKE Y position
+                                    obj.arm2D.gripper2D.segPos2D(2,j) = double(obj.frameOfData.RigidBodies(s).x);
+                                    
+                                    j = j+1;
+                                end
+                                
+                                if (s == obj.arm2D.dims.S+1+obj.arm2D.gripper2D.dims.S+1)
+                                    l_roundObjectX = double(obj.frameOfData.RigidBodies(s).z-obj.frameOfData.RigidBodies(1).z);
+                                    l_roundObjectY = double(obj.frameOfData.RigidBodies(s).x-obj.frameOfData.RigidBodies(1).x);
+                                    obj.roundObject.setMeasuredState(l_roundObjectX,l_roundObjectY);
+                                end
                             end
                         end
                        

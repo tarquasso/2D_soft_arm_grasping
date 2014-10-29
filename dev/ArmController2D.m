@@ -12,6 +12,7 @@ classdef ArmController2D < handle
         simulationTime;
         shapeHistory;
         expType;
+        characterizer;
         
         armPlotHandleTarget;
         armPlotHandleMeas;
@@ -21,8 +22,9 @@ classdef ArmController2D < handle
     
     methods(Access = public)
         % Constructor
-        function obj = ArmController2D(expType)
-             if nargin < 1
+        function obj = ArmController2D(expType, armDof, gripperExists)
+                
+            if nargin < 1
                 obj.expType = ExpTypes.PhysicalExperiment;
             else
                 if(isa(expType,'ExpTypes'))
@@ -32,16 +34,26 @@ classdef ArmController2D < handle
                 end
             end
             obj.expType = expType;
-            obj.arm2D = Arm2D( obj.expType );
-            %obj.baseBoard = BaseBoard();
-            obj.roundObject = RoundObject();
-            obj.sensor = Sensor(obj.arm2D,obj.roundObject,obj);
-            obj.trajGen = TrajGen();
-            obj.plannerGrasp = PlannerGrasp(PlannerTypes.ArcSpacePlanner,...
-                obj.arm2D,obj.roundObject, obj.trajGen, 1/obj.sensor.frameRate ); % last parameter is frame period
-            obj.simulationTime = 45;
-            obj.shapeHistory = ShapeHistory(obj.arm2D.dims.S, ...
-                obj.simulationTime * obj.sensor.frameRate);
+            obj.arm2D = Arm2D( obj.expType , armDof, gripperExists);
+            
+            if(obj.expType == ExpTypes.Characterization)
+                %no round object
+                obj.sensor = Sensor(obj,obj.arm2D);
+            else
+                obj.roundObject = RoundObject();
+                obj.sensor = Sensor(obj,obj.arm2D,obj.roundObject);
+            end
+            
+            if(obj.expType == ExpTypes.Characterization)
+                obj.characterizer = Characterizer(obj.arm2D);
+            else
+                obj.trajGen = TrajGen();
+                obj.plannerGrasp = PlannerGrasp(PlannerTypes.ArcSpacePlanner,...
+                    obj.arm2D,obj.roundObject, obj.trajGen, 1/obj.sensor.frameRate ); % last parameter is frame period
+            end
+%             obj.simulationTime = 45;
+%             obj.shapeHistory = ShapeHistory(obj.arm2D.dims.S, ...
+%                 obj.simulationTime * obj.sensor.frameRate);
             
         end
         function start(obj)
@@ -81,15 +93,31 @@ classdef ArmController2D < handle
                     obj.stop();
                     obj.delete();
                 end
+                
+            elseif(obj.expType == ExpTypes.Characterization)
+                if(obj.arm2D.calibrated == true)
+                    l_result = obj.characterizer.step();
+                    %obj.plannerGrasp.logData();
+                else
+                    l_result = 0;
+                end
+                if(l_result == 1)
+                    obj.stop();
+                    obj.delete();
+                end
             end
         end
         % Destructor
         function delete(obj)
             obj.arm2D.delete();
+            if(obj.expType ~= ExpTypes.Characterization)
             obj.roundObject.delete();
+            end
             obj.sensor.delete();
+            if(obj.expType ~= ExpTypes.Characterization)
             obj.plannerGrasp.delete();
-            obj.shapeHistory.delete();
+            end
+%             obj.shapeHistory.delete();
         end
     end
 end

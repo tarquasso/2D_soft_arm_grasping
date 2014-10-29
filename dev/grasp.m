@@ -3,7 +3,7 @@ function [] = grasp( )
 rpttype = 'extended';
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%% Initialize arm %%%%%%%%%%%%%%%%%%%%%%%%%
 
-ARM = Arm2D(ExpTypes.Simulation);
+ARM = Arm2D(ExpTypes.Simulation,6,true);
 %ARM.setMeasuredLengths(2.47*0.0254*ones(1, 6));
 %ARM.setMeasuredCurvatures(k_init);
 %ARM.setTargetCurvatures(k_init);
@@ -27,7 +27,6 @@ obj_x = (xMax-xMin).*rand(1)+xMin;          % x coordinate of the center of the 
 obj_y = (yMax-yMin).*rand(1)+yMin;          % y coordinate of the center of the object  <--- MEASURE FROM MOCAP INITIAL FRAME
 OBJECT.setMeasuredState(obj_x, obj_y);
 
-%obj.sensor = Sensor(ARM,OBJECT);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%% Initialize Planner %%%%%%%%%%%%%%%%%%%%%%%
 framePeriod = 0.1; %s

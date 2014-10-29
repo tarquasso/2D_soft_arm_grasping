@@ -17,7 +17,7 @@ expTime = 18.0;
 % plot([xMin,xMax],[yMin,yMin], '-k');
 % plot([xMin,xMax],[yMax,yMax], '-k');
 % 
-ac = ArmController2D(ExpTypes.Tuning);
+ac = ArmController2D(ExpTypes.Tuning,6,true);
 ac.start;
 
 %pause(expTime)

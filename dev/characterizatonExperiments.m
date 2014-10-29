@@ -26,8 +26,8 @@ rectangle('Position',[xMin,yMin,(xMax-xMin),(yMax-yMin)],'Curvature',[0,0],...
           'FaceColor','r')
 
 %% run experiment
-expTime = 70;
-ac = ArmController2D(ExpTypes.PhysicalExperiment,6,true);
+expTime = 30;
+ac = ArmController2D(ExpTypes.Characterization,1,false);
 
 ac.start;
 
