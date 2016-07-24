@@ -50,17 +50,21 @@ classdef Arm2D < handle
             kMinMU6 = [-11.0, -18.5, -11.0, -14.1, -11.8, -17.4];     % minimum allowable curvature
             kMaxMU6 = [13.8, 11, 15.6, 10.3, 16.2, 12.4];      % maximum allowable curvature
             thetaStartMU6 = pi/2;   % is the current/measured initial orientation of the first segment
-            %end of conifg
+            %end of config
             obj.dims.kMin =kMinMU6(1:obj.dims.S);
             obj.dims.kMax =kMaxMU6(1:obj.dims.S);
             obj.dims.thetaStart = thetaStartMU6;
-            obj.dims.lengths = repmat(2.47*0.0254,1,obj.dims.S); %[m]
+            obj.dims.lengths = repmat(2.47*0.0254,1,obj.dims.S); %[m] %cylinddrical
+            %obj.dims.lengths = repmat(0.043,1,obj.dims.S); %[m] %ribbed
+            %obj.dims.lengths = repmat(0.096,1,obj.dims.S); %[m] %pleated
             obj.dims.kThreshold = 5;
             obj.dims.kEpsilon = 0.5;
-            k_init = 0.1*randn(1, 6);
+            k_init = 0.1*randn(1, obj.dims.S);
             obj.kMeasInit = k_init;
             obj.thetaMeasInit = zeros(1,obj.dims.S +1);
-            obj.setMeasuredLengths(2.47*0.0254*ones(1, obj.dims.S));
+            obj.setMeasuredLengths(obj.dims.lengths);
+            %obj.setMeasuredLengths(repmat(0.096,1,obj.dims.S));
+            
             obj.setMeasuredCurvatures(k_init);
             obj.kIntermediate = k_init;
             obj.setTargetCurvatures(k_init);

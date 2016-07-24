@@ -22,8 +22,11 @@ classdef ArmController2D < handle
     
     methods(Access = public)
         % Constructor
-        function obj = ArmController2D(expType, armDof, gripperExists)
-                
+        function obj = ArmController2D(expType, armDof, gripperExists,minutes)
+            
+            if nargin < 4
+                minutes = 1;
+            end
             if nargin < 1
                 obj.expType = ExpTypes.PhysicalExperiment;
             else
@@ -45,7 +48,7 @@ classdef ArmController2D < handle
             end
             
             if(obj.expType == ExpTypes.Characterization)
-                obj.characterizer = Characterizer(obj.arm2D);
+                obj.characterizer = Characterizer(obj.arm2D,minutes);
             else
                 obj.trajGen = TrajGen();
                 obj.plannerGrasp = PlannerGrasp(PlannerTypes.ArcSpacePlanner,...

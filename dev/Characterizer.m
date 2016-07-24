@@ -75,10 +75,10 @@ classdef Characterizer < handle
     
     methods
         %Constructor
-        function obj = Characterizer(arm2DHand)
+        function obj = Characterizer(arm2DHand,minutes)
             obj.arm2D = arm2DHand;
             S = obj.arm2D.dims.S;
-            N = 60*100; % max data points to log
+            N = minutes*60*100; % max data points to log
             obj.shapeHistory = ShapeHistory(S, N);
             
         end

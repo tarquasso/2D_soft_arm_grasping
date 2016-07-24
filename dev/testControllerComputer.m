@@ -26,13 +26,13 @@ rectangle('Position',[xMin,yMin,(xMax-xMin),(yMax-yMin)],'Curvature',[0,0],...
           'FaceColor','r')
 
 %% run experiment
-expTime = 70;
+expTime = 70; %70
 ac = ArmController2D(ExpTypes.PhysicalExperiment,6,true);
 
 ac.start;
 
 %timeoutDlg(@input, expTime, 'Enter 1 to cancel:');
 pause(expTime);
-if(ac.isvalid ==1)
+if(ac.isvalid == 1)
     delete(ac);
 end

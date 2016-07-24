@@ -88,7 +88,7 @@ classdef PlannerGrasp < handle
             obj.framePeriod = framePeriod;
             
             %ArcSpace Planner
-            obj.transitDistInc = 0.05;
+            obj.transitDistInc = 0.04; %0.05
             obj.posMoveEpsilon = 0.02;
             obj.posMoveEpsilonFinal = 0.015;%working: 0.02;
             obj.rotMovEpsilon = 6.0*(180/3.14159);%working: 7.5*(180/3.14159);
