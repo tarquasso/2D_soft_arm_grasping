@@ -1,10 +1,13 @@
 # README #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+dev foldr contains all the code. test
+dev/testControllerComputer.m runs the software!
 
 ### What is this repository for? ###
 
 * Quick summary
+2d soft arm model, controller and planner
+
 * Version
 * [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
 
